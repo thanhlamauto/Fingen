@@ -39,9 +39,7 @@ constraints at once: it must preserve identity-discriminative ridge and minutiae
 structure, and it must cover the sensor-dependent appearance shifts that occur
 in operational deployments.  We present \method, a lightweight two-stage latent
 diffusion pipeline for generating multi-sensor fingerprint impressions.  Stage
-1 samples a fingerprint identity in a compressed VQ-VAE latent space while
-conditioning on a mean-pooled ConvNeXt style descriptor computed from reference
-images of the target sensor.  Stage 2 turns the generated identity into multiple
+1 samples a fingerprint identity in a compressed VQ-VAE latent space .  Stage 2 turns the generated identity into multiple
 sensor-specific impressions using a ridge-conditioned generator, pose-mask
 alignment, and small control perturbations.  For adapting to a new sensor, we
 freeze the identity model and the ridge-control path and fine-tune only LoRA
