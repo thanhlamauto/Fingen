@@ -131,9 +131,8 @@ frozen diffusion model for spatially aligned conditions.  For fingerprints,
 ridge maps are a natural structural condition because they encode the ridge
 flow and minutiae layout used by matchers.  LoRA~\cite{hu2022lora} provides a
 low-rank adaptation mechanism for fine-tuning large neural networks with few
-trainable parameters.  DataDream~\cite{kim2024datadream} demonstrates the
-usefulness of example-guided LoRA adaptation for dataset generation.  We adapt
-this idea to fingerprint sensors by tuning only Stage-2 UNet LoRA weights.
+trainable parameters.  We use LoRA as a practical sensor-adaptation mechanism
+by tuning only Stage-2 UNet adapter weights.
 
 \section{Method}
 \label{sec:method}
