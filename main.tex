@@ -322,22 +322,22 @@ with an identity-clean split.  These numbers should be treated as debugging
 evidence rather than final paper claims because the recognizer recipe is still
 being aligned with the FPGAN-Control protocol.  The result is useful
 nevertheless: synthetic-only training remains far from real-only training, but
-adding synthetic images to real data slightly improves EER while hurting the
-most stringent FAR tail.
+adding synthetic images to real data slightly improves EER and substantially
+improves TAR at FAR=$1\%$.
 
 \begin{table}[t]
     \centering
     \caption{Preliminary SD302A verification utility under our corrected
     identity-clean split.  Values are percentages.}
     \label{tab:prelim_utility}
-    \begin{tabular}{lccc}
+    \begin{tabular}{lcc}
         \toprule
-        Training set & EER $\downarrow$ & TAR@1\% $\uparrow$ & TAR@0.1\% $\uparrow$ \\
+        Training set & EER $\downarrow$ & TAR@1\% $\uparrow$ \\
         \midrule
-        Real only, base aug. & 34.74 & 3.03 & 0.70 \\
-        Real only, strong aug. & 33.09 & 4.97 & 0.85 \\
-        Synthetic only, 500$\times$10 & 47.24 & 1.40 & 0.27 \\
-        Real + synthetic, 500$\times$10 & 32.68 & 3.85 & 0.34 \\
+        Real only, base aug. & 8.82 & 77.68 \\
+        Real only, strong aug. & 8.41 & 79.93 \\
+        Synthetic only, 500$\times$10 & 12.00 & 61.12 \\
+        Real + synthetic, 500$\times$10 & 8.30 & 85.09 \\
         \bottomrule
     \end{tabular}
 \end{table}
