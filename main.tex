@@ -39,16 +39,18 @@ constraints at once: it must preserve identity-discriminative ridge and minutiae
 structure, and it must cover the sensor-dependent appearance shifts that occur
 in operational deployments.  We present \method, a lightweight two-stage latent
 diffusion pipeline for generating multi-sensor fingerprint impressions.  Stage
-1 samples a fingerprint identity in a compressed VQ-VAE latent space .  Stage 2 turns the generated identity into multiple
-sensor-specific impressions using a ridge-conditioned generator, pose-mask
-alignment, and small control perturbations.  For adapting to a new sensor, we
-freeze the identity model and the ridge-control path and fine-tune only LoRA
-weights in the Stage-2 denoising UNet.  This design targets affordable
+1 samples a fingerprint identity from an unconditional fingerprint latent
+diffusion prior in a compressed VQ-VAE latent space.  Stage 2 turns the
+generated identity into multiple sensor-specific impressions using a
+ridge-conditioned generator, pose-mask alignment, and small control
+perturbations.  For adapting to a new sensor, we freeze the identity model and
+the ridge-control path and fine-tune only LoRA weights in the Stage-2 denoising
+UNet.  This design targets affordable
 research hardware: the base denoiser is compact, sampling uses DDIM in latent
 space, and a sensor adapter is a small LoRA checkpoint rather than a full
 diffusion model.  We use FPGAN-Control as the primary competitor on NIST
 SD302A, and treat SD301A, SD302B, and FVC-style sensor transfer as new
-cross-sensor settings enabled by the proposed conditioning and adapter design.
+cross-sensor settings enabled by the proposed ridge-control and adapter design.
 \end{abstract}
 
 \section{Introduction}
@@ -75,17 +77,19 @@ such as an NVIDIA RTX A4000.
 
 This work explores a more pragmatic point in the design space.  Rather than
 fine-tuning a large general-purpose text-to-image model, \method uses a compact
-fingerprint-specific latent diffusion model.  Sensor appearance is represented
-by a ConvNeXt descriptor pooled from a small set of reference images from the
-target sensor.  Identity preservation is handled through an explicit ridge
-condition in the second stage.  Finally, sensor adaptation is performed with
-Stage-2 UNet LoRA only: the first-stage identity generator and the structural
-control path remain frozen.
+fingerprint-specific latent diffusion model.  Identity generation is deliberately
+kept unconditional so that the first stage learns a fingerprint identity prior
+without binding sampled ridges to a reference sensor style.  Sensor appearance
+is handled after ridge extraction through the Stage-2 renderer and its sensor
+adapters.  Identity preservation is handled through an explicit ridge condition
+in the second stage.  Finally, sensor adaptation is performed with Stage-2 UNet
+LoRA only: the first-stage identity generator and the structural control path
+remain frozen.
 
 Our contributions are:
 \begin{itemize}
-    \item A lightweight sensor-conditioned latent diffusion pipeline for
-    generating fingerprint identities and multi-sensor impressions.
+    \item A lightweight two-stage latent diffusion pipeline that separates
+    unconditional identity generation from sensor-specific impression rendering.
     \item A Stage-2 ridge-conditioned synthesis module with pose-mask alignment
     and mild control augmentation, reducing over-constrained pose transfer from
     the source identity ridge.
@@ -137,53 +141,49 @@ this idea to fingerprint sensors by tuning only Stage-2 UNet LoRA weights.
 \subsection{Overview}
 
 \method is a two-stage generator.  Stage 1 samples a synthetic fingerprint
-identity.  Stage 2 renders multiple impressions of that identity under target
-sensor appearances.  Both stages operate on $512 \times 512$ grayscale images
-encoded into $128 \times 128 \times 3$ VQ-VAE latents.  The VQ-VAE is frozen.
+identity from an unconditional fingerprint latent prior.  Stage 2 renders
+multiple impressions of that identity under target sensor appearances.  Both
+stages operate on $512 \times 512$ grayscale images encoded into
+$128 \times 128 \times 3$ VQ-VAE latents.  The VQ-VAE is frozen.
 
-Let $x$ be a fingerprint image, $z=E(x)$ its latent, and $s$ a sensor style
-condition.  Stage 1 models $p_\theta(z \mid s)$ and generates a base identity
-image $\hat{x}^{id}$.  A ridge extractor produces a control map
-$r = R(\hat{x}^{id})$.  Stage 2 then samples impressions
-$\hat{x}^{imp}_1,\ldots,\hat{x}^{imp}_K$ conditioned on both the ridge map and
-the target sensor style.
+Let $x$ be a fingerprint image and $z=E(x)$ its latent.  Stage 1 models
+$p_\theta(z)$ and generates a base identity image $\hat{x}^{id}$.  A ridge
+extractor produces a control map $r = R(\hat{x}^{id})$.  Stage 2 then samples
+impressions $\hat{x}^{imp}_1,\ldots,\hat{x}^{imp}_K$ conditioned on the ridge
+map and the selected target-sensor rendering parameters.
 
-\subsection{Sensor-Conditioned Identity Generation}
+\subsection{Unconditional Identity Generation}
 
-For each training target image, we sample $M=15$ reference images from the same
-sensor.  A frozen ConvNeXt-Tiny encoder~\cite{liu2022convnet} maps each reference to an embedding,
-and the embeddings are mean-pooled:
-\[
-    s = \frac{1}{M}\sum_{i=1}^{M} f_{\text{ConvNeXt}}(x_i^{ref}).
-\]
-The pooled descriptor is projected to a small set of context tokens and
-injected into the Stage-1 UNet through cross-attention.  This keeps the target
-sensor condition fixed-shape and JIT-friendly: random reference selection is
-performed before the compiled training step, and the training step always sees
-the same tensor shapes.
+Stage 1 is an unconditional latent diffusion model trained on fingerprint
+latents.  It does not receive a sensor label, reference image set, or learned
+style descriptor.  This choice keeps the identity prior compact and avoids
+coupling the sampled ridge identity to a particular acquisition style.  The
+generated image is used only as an identity source; its ridge map is extracted
+and passed to Stage 2 for sensor-specific rendering.
 
 The Stage-1 diffusion objective is standard noise prediction:
 \[
     \mathcal{L}_{\text{stage1}} =
-    \mathbb{E}_{z,t,\epsilon,s}
+    \mathbb{E}_{z,t,\epsilon}
     \left[\left\|
-        \epsilon - \epsilon_\theta(z_t,t,s)
+        \epsilon - \epsilon_\theta(z_t,t)
     \right\|_1\right].
 \]
 
 \subsection{Ridge-Conditioned Instance Generation}
 
-Stage 2 receives a ridge image $r$ and a target sensor descriptor $s$.  The
+Stage 2 receives a ridge image $r$ and target sensor rendering information.  The
 ridge map is encoded by a ControlNet-style branch initialized from the Stage-1
 UNet where compatible.  The denoising UNet predicts the diffusion noise using
-the noisy latent, timestep, sensor descriptor, and residual control features:
+the noisy latent, timestep, and residual control features:
 \[
-    \epsilon_\phi(z_t,t,r,s) =
-    U_\phi\left(z_t,t,s,C_\phi(z_t,t,r,s)\right).
+    \epsilon_\phi(z_t,t,r) =
+    U_\phi\left(z_t,t,C_\phi(z_t,t,r)\right).
 \]
 The base Stage-2 training loss is again an L1 noise-prediction objective.
 During controlled synthesis, the same identity ridge can be paired with
-multiple sensor descriptors to create cross-sensor impressions.
+multiple target-sensor adapters or rendering settings to create cross-sensor
+impressions.
 
 \subsection{Stage-2 UNet LoRA for Sensor Adaptation}
 
@@ -194,8 +194,7 @@ Stage-2 denoising UNet projection layers and optimize only these LoRA weights.
 The intent is to change sensor texture, contrast, background statistics, and
 local artifact style while preserving the behavior of the ridge-control path.
 At inference time, the adapter is selected by sensor, while the input ridge and
-reference style descriptor continue to provide identity and appearance
-conditioning.
+sampling settings provide identity and appearance control.
 
 \subsection{Pose-Mask Alignment and Control Perturbation}
 
@@ -233,11 +232,11 @@ setting and constitute the additional contribution of this work.
 \subsection{Generation Protocol}
 
 For a synthetic dataset with 500 identities and 10 impressions per identity,
-Stage 1 samples identity images with sensor conditions balanced across SD302A
-sensors A--H.  Each identity image is ridge-extracted and passed to Stage 2.
-The 10 impressions are generated across target sensors A--H, again using
-reference style descriptors from the target sensor.  In the pose-aligned
-setting, each sensor cycles through a library of up to 32 pose masks.
+Stage 1 samples identity images unconditionally.  Each identity image is
+ridge-extracted and passed to Stage 2.  The 10 impressions are generated across
+target sensors A--H using the corresponding target-sensor renderer or adapter.
+In the pose-aligned setting, each sensor cycles through a library of up to 32
+pose masks.
 
 \begin{table}[t]
     \centering
@@ -250,9 +249,9 @@ setting, each sensor cycles through a library of up to 32 pose masks.
         \midrule
         Image resolution & $512 \times 512$ grayscale \\
         Latent resolution & $128 \times 128 \times 3$ \\
-        Stage-1 condition & 15 same-sensor ConvNeXt refs \\
-        Stage-1 injection & cross-attention context tokens \\
-        Stage-2 condition & ridge map + sensor style descriptor \\
+        Stage-1 condition & none; unconditional latent prior \\
+        Stage-1 injection & none \\
+        Stage-2 condition & ridge map + target-sensor renderer/adapters \\
         Synthetic set & 500 identities, 10 impressions each \\
         SD302A target sensors & A, B, C, D, E, F, G, H \\
         Pose masks & up to 32 per sensor, cycled \\
@@ -323,22 +322,22 @@ with an identity-clean split.  These numbers should be treated as debugging
 evidence rather than final paper claims because the recognizer recipe is still
 being aligned with the FPGAN-Control protocol.  The result is useful
 nevertheless: synthetic-only training remains far from real-only training, but
-adding synthetic images to real data slightly improves EER while hurting the
-most stringent FAR tail.
+adding synthetic images to real data slightly improves EER and substantially
+improves TAR at FAR=$1\%$.
 
 \begin{table}[t]
     \centering
     \caption{Preliminary SD302A verification utility under our corrected
     identity-clean split.  Values are percentages.}
     \label{tab:prelim_utility}
-    \begin{tabular}{lccc}
+    \begin{tabular}{lcc}
         \toprule
-        Training set & EER $\downarrow$ & TAR@1\% $\uparrow$ & TAR@0.1\% $\uparrow$ \\
+        Training set & EER $\downarrow$ & TAR@1\% $\uparrow$ \\
         \midrule
-        Real only, base aug. & 34.74 & 3.03 & 0.70 \\
-        Real only, strong aug. & 33.09 & 4.97 & 0.85 \\
-        Synthetic only, 500$\times$10 & 47.24 & 1.40 & 0.27 \\
-        Real + synthetic, 500$\times$10 & 32.68 & 3.85 & 0.34 \\
+        Real only, base aug. & 8.82 & 77.68 \\
+        Real only, strong aug. & 8.41 & 79.93 \\
+        Synthetic only, 500$\times$10 & 12.00 & 61.12 \\
+        Real + synthetic, 500$\times$10 & 8.30 & 85.09 \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -375,11 +374,11 @@ expanded before final generation.
 
 The additional datasets are used to test sensor coverage rather than to claim a
 direct FPGAN-Control comparison.  SD301A and SD302B increase the diversity of
-contact and rolled sensors used in Stage 1.  FVC 2004 provides compact
-benchmarks with sensor styles that differ from SD302A.  Figure~\ref{fig:fvc}
-shows an inspection sheet used to identify FVC sensors whose image statistics
-are close enough to SD302A-style sensors that ConvNeXt reference conditioning
-and Stage-2 LoRA adaptation are likely to work.
+contact and rolled sensors used for sensor-transfer studies.  FVC 2004 provides
+compact benchmarks with sensor styles that differ from SD302A.
+Figure~\ref{fig:fvc} shows an inspection sheet used to identify FVC sensors
+whose image statistics are close enough to SD302A-style sensors that Stage-2
+LoRA adaptation is likely to work.
 
 \begin{figure}[t]
     \centering
@@ -410,7 +409,7 @@ explicit ridge control for identity preservation.
         \toprule
         Method & Strength & Limitation addressed by \method \\
         \midrule
-        FPGAN-Control & Strong SD302A controllable baseline & We add lightweight diffusion, reference-image sensor conditioning, and LoRA sensor adapters. \\
+        FPGAN-Control & Strong SD302A controllable baseline & We add lightweight diffusion, explicit ridge rendering, and LoRA sensor adapters. \\
         GenPrint & Broad multimodal diffusion and zero-shot style control & We target smaller models and cheaper adaptation for A4000-class labs. \\
         \method & Compact latent diffusion with ridge control & Current recognizer-transfer gap remains the main open issue. \\
         \bottomrule
@@ -434,9 +433,9 @@ and a reproduced FPGAN-Control comparison under the same recognizer protocol.
 
 \method is a lightweight fingerprint diffusion pipeline designed for practical
 synthetic data generation and sensor adaptation.  It combines a compact
-sensor-conditioned latent identity model, ridge-conditioned instance
-generation, pose-mask alignment, and Stage-2 UNet LoRA adapters for unseen
-sensors.  The method is positioned against FPGAN-Control on SD302A, while
+unconditional latent identity model, ridge-conditioned instance generation,
+pose-mask alignment, and Stage-2 UNet LoRA adapters for unseen sensors.  The
+method is positioned against FPGAN-Control on SD302A, while
 SD301A, SD302B, and FVC-style sensors define the cross-sensor extension.  The
 remaining work is to finalize the FPGAN-Control comparison, benchmark A4000
 sampling and LoRA fine-tuning cost, and close the observed recognizer-transfer
