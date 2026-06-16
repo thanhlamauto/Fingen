@@ -1,0 +1,123 @@
+{
+  "note": "latent32_proxy downsamples trained 128x128x3 VQ-VAE latents to 32x32x3 and upsamples them before the same decoder; this isolates the spatial bottleneck of a conventional LDM-32 latent.",
+  "num_samples": 4,
+  "vqvae_128": {
+    "mae": 0.05518097244203091,
+    "gradient_corr": 0.8951603770256042,
+    "ridge_f1": 0.9187225391449143,
+    "ridge_tolerant_recall_2px": 0.9991206740376519,
+    "ridge_tolerant_f1_2px": 0.9944184139294014,
+    "ridge_pixel_ratio": 1.0540884350189692
+  },
+  "latent32_proxy": {
+    "mae": 0.22427977062761784,
+    "gradient_corr": -0.05847523547708988,
+    "ridge_f1": 0.08635635028976274,
+    "ridge_tolerant_recall_2px": 0.13974248120475993,
+    "ridge_tolerant_f1_2px": 0.21892614262711887,
+    "ridge_pixel_ratio": 0.10962152310855904
+  },
+  "samples": [
+    {
+      "index": 1220,
+      "sensor": "A",
+      "path": "/home/nguyenthanhlam/kaggle_downloads/fingerprint_datasets/sd302a/images/challengers/A/roll/png/00002455_A_roll_05.png",
+      "vq128": {
+        "mae": 0.02021808922290802,
+        "gradient_corr": 0.8073158860206604,
+        "ridge_precision": 0.8622344450801971,
+        "ridge_recall": 0.8927001719854768,
+        "ridge_f1": 0.8772028654855457,
+        "ridge_tolerant_recall_2px": 0.9978406267915154,
+        "ridge_tolerant_f1_2px": 0.9947857750593584,
+        "ridge_pixel_ratio": 1.035333460729983
+      },
+      "latent32_proxy": {
+        "mae": 0.0832202360033989,
+        "gradient_corr": -0.018651284277439117,
+        "ridge_precision": 0.4805553364360653,
+        "ridge_recall": 0.11641505828396713,
+        "ridge_f1": 0.18742596951097573,
+        "ridge_tolerant_recall_2px": 0.30852283584941714,
+        "ridge_tolerant_f1_2px": 0.46042733702588773,
+        "ridge_pixel_ratio": 0.24225109879610165
+      }
+    },
+    {
+      "index": 6060,
+      "sensor": "B",
+      "path": "/home/nguyenthanhlam/kaggle_downloads/fingerprint_datasets/sd302a/images/challengers/B/roll/png/00002456_B_roll_09.png",
+      "vq128": {
+        "mae": 0.031552571803331375,
+        "gradient_corr": 0.9076791405677795,
+        "ridge_precision": 0.9117219365135663,
+        "ridge_recall": 0.9478438819343301,
+        "ridge_f1": 0.9294320760003977,
+        "ridge_tolerant_recall_2px": 0.9992717685883372,
+        "ridge_tolerant_f1_2px": 0.9990861069429998,
+        "ridge_pixel_ratio": 1.0396194760421085
+      },
+      "latent32_proxy": {
+        "mae": 0.15634465217590332,
+        "gradient_corr": -0.1779358685016632,
+        "ridge_precision": 0.45925370551934946,
+        "ridge_recall": 0.07340388267177965,
+        "ridge_f1": 0.12657664459827853,
+        "ridge_tolerant_recall_2px": 0.21141756236057596,
+        "ridge_tolerant_f1_2px": 0.34043466937319705,
+        "ridge_pixel_ratio": 0.1598329676812743
+      }
+    },
+    {
+      "index": 10029,
+      "sensor": "D",
+      "path": "/home/nguyenthanhlam/kaggle_downloads/fingerprint_datasets/sd302a/images/challengers/D/roll/png/00002455_D_roll_06.png",
+      "vq128": {
+        "mae": 0.13303279876708984,
+        "gradient_corr": 0.8941040635108948,
+        "ridge_precision": 0.9032472220608616,
+        "ridge_recall": 0.955065151581626,
+        "ridge_f1": 0.9284337308289405,
+        "ridge_tolerant_recall_2px": 0.9993857763348396,
+        "ridge_tolerant_f1_2px": 0.9984389110755707,
+        "ridge_pixel_ratio": 1.0573684903259772
+      },
+      "latent32_proxy": {
+        "mae": 0.41470861434936523,
+        "gradient_corr": -0.0033921822905540466,
+        "ridge_precision": 0.5140551071527971,
+        "ridge_recall": 0.0162067301364454,
+        "ridge_f1": 0.0314227870497967,
+        "ridge_tolerant_recall_2px": 0.039029526609046634,
+        "ridge_tolerant_f1_2px": 0.07484256410939069,
+        "ridge_pixel_ratio": 0.03152722327030229
+      }
+    },
+    {
+      "index": 16181,
+      "sensor": "H",
+      "path": "/home/nguyenthanhlam/kaggle_downloads/fingerprint_datasets/sd302a/images/challengers/H/roll/png/00002437_H_roll_02.png",
+      "vq128": {
+        "mae": 0.03592042997479439,
+        "gradient_corr": 0.9715424180030823,
+        "ridge_precision": 0.903394814984011,
+        "ridge_recall": 0.9793091708192764,
+        "ridge_f1": 0.9398214842647736,
+        "ridge_tolerant_recall_2px": 0.9999845244359157,
+        "ridge_tolerant_f1_2px": 0.9853628626396771,
+        "ridge_pixel_ratio": 1.084032312977808
+      },
+      "latent32_proxy": {
+        "mae": 0.2428455799818039,
+        "gradient_corr": -0.033921606838703156,
+        "ridge_precision": 0.0,
+        "ridge_recall": 0.0,
+        "ridge_f1": 0.0,
+        "ridge_tolerant_recall_2px": 0.0,
+        "ridge_tolerant_f1_2px": 0.0,
+        "ridge_pixel_ratio": 0.004874802686557925
+      }
+    }
+  ],
+  "figure": "/home/nguyenthanhlam/Fingen/figures/ablation_vqvae128_vs_latent32.png"
+}

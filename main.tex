@@ -405,6 +405,57 @@ to real DB1\_B images.
     \label{fig:fvc}
 \end{figure}
 
+\subsection{Ablation Study: First-Stage Latent Resolution}
+
+We use a relatively high-resolution $128 \times 128 \times 3$ VQ-VAE latent
+instead of a conventional $32 \times 32$ LDM-style latent.  This choice is
+important for fingerprints because ridge flow and minutiae are local,
+high-frequency structures.  To isolate the effect of latent spatial
+resolution, we keep the same trained VQ-VAE decoder and compare normal
+decoding against a $32 \times 32$ bottleneck proxy: the encoded latent is
+downsampled from $128 \times 128$ to $32 \times 32$, then upsampled back before
+decoding.  This does not introduce a separately trained weaker autoencoder;
+it directly tests how much ridge information is lost when the diffusion latent
+is forced through a low spatial bottleneck.
+
+Table~\ref{tab:latent_resolution_ablation} and
+Figure~\ref{fig:latent_resolution_ablation} show that the $128 \times 128$
+VQ-VAE preserves fingerprint ridges almost exactly under a two-pixel matching
+tolerance, while the $32 \times 32$ bottleneck removes most ridge detail and
+turns minutiae-bearing structures into broad intensity blobs.  This supports
+using the larger VQ-VAE latent despite the extra diffusion cost: Stage 1 must
+produce a ridge identity that can later be extracted and controlled by Stage 2.
+
+\begin{table*}[t]
+    \centering
+    \small
+    \caption{First-stage latent-resolution ablation on four SD302A examples.
+    The $32 \times 32$ variant is a latent-bottleneck proxy using the same
+    trained decoder.  Ridge F1 uses ridge maps extracted from real and
+    reconstructed images with a two-pixel tolerance.}
+    \label{tab:latent_resolution_ablation}
+    \begin{tabular}{lcccc}
+        \toprule
+        First stage & MAE $\downarrow$ & Grad. corr. $\uparrow$ & Ridge F1 $\uparrow$ & Ridge px. ratio \\
+        \midrule
+        VQ-VAE $128^2$ & 0.055 & 0.895 & 0.994 & 1.05 \\
+        Latent bottleneck $32^2$ & 0.224 & -0.058 & 0.219 & 0.11 \\
+        \bottomrule
+    \end{tabular}
+\end{table*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
+    \caption{Qualitative first-stage latent-resolution ablation.  Black pixels
+    in the diff columns are matched ridges, red pixels are real ridges missed by
+    the reconstruction, and green pixels are extra reconstructed ridges.  The
+    $128 \times 128$ VQ-VAE latent retains ridge topology, whereas the
+    $32 \times 32$ bottleneck proxy loses the local ridge pattern needed for
+    fingerprint identity.}
+    \label{fig:latent_resolution_ablation}
+\end{figure*}
+
 \subsection{Lightweight Design}
 
 The key engineering goal is to make fingerprint synthesis usable by research
