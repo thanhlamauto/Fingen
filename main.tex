@@ -311,17 +311,19 @@ experiments.
     \centering
     \caption{SD302A recognition results with 20K-image training datasets.
     Each synthetic dataset contains 2,000 identities with 10 impressions per
-    identity.  Values are TAR@FAR=$1\%$ on the SD302A test split.}
+    identity.  Values are TAR@FAR=$1\%$ on the SD302A test split.  Baseline
+    values are temporary placeholders obtained by adding Gaussian noise with
+    $\sigma=3.0$ to the corresponding FPGAN-Control table entries.}
     \label{tab:sd302_tar1_backbones}
     \begin{tabular}{lcccc}
         \toprule
         Training dataset & Res18 & Res50 & Mob50 & ViT-S \\
         \midrule
-        Real data & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        StyleGAN2 & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        PrintsGAN & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        FPGC-0 & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        Ours & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
+        Real data & 91.75 & 92.41 & 92.54 & 94.48 \\
+        StyleGAN2 & 24.22 & 5.98 & 28.07 & 4.98 \\
+        PrintsGAN & 70.67 & 70.23 & 72.58 & 70.14 \\
+        FPGC-0 & 87.54 & 87.18 & 87.54 & 84.37 \\
+        Ours &  &  &  &  \\
         \bottomrule
     \end{tabular}
 \end{table*}
