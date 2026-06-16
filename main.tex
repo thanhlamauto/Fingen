@@ -300,25 +300,28 @@ identity split, and label parsing materially affect EER and TAR.
 
 \subsection{SD302A Comparison to FPGAN-Control}
 
-Table~\ref{tab:fpgan_compare} is the intended main comparison.  We leave the
-FPGAN cells as TODO until the exact protocol is selected and numbers are either
-copied from the paper under matching assumptions or reproduced locally.
+For the main SD302A recognition-utility comparison, each synthetic training set
+contains 2,000 identities and 10 impressions per identity, for 20,000 training
+images.  Recognition models are trained separately on each dataset and
+evaluated on the SD302A test split.  Table~\ref{tab:sd302_tar1_backbones}
+reports TAR at FAR=$1\%$ for the four recognizer backbones used in our
+experiments.
 
 \begin{table*}[t]
     \centering
-    \caption{Planned SD302A comparison against FPGAN-Control.  FPGAN-Control is
-    the main competitor because it targets controllable fingerprint generation
-    on NIST SD302/N2N.  Other datasets are reported as new cross-sensor
-    settings for \method rather than baseline comparisons.}
-    \label{tab:fpgan_compare}
-    \begin{tabular}{lccccc}
+    \caption{SD302A recognition results with 20K-image training datasets.
+    Each synthetic dataset contains 2,000 identities with 10 impressions per
+    identity.  Values are TAR@FAR=$1\%$ on the SD302A test split.}
+    \label{tab:sd302_tar1_backbones}
+    \begin{tabular}{lcccc}
         \toprule
-        Method & Train data & Synthetic protocol & EER $\downarrow$ & TAR@FAR1\% $\uparrow$ & TAR@FAR0.1\% $\uparrow$ \\
+        Training dataset & Res18 & Res50 & Mob50 & ViT-S \\
         \midrule
-        Real-only recognizer & SD302A real & none & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        FPGAN-Control~\cite{shoshan2023fpgan} & SD302A & matched SD302A sensors & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        \method & SD302A & matched SD302A sensors & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
-        Real + \method & SD302A real + synth & matched SD302A sensors & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
+        Real data & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
+        StyleGAN2 & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
+        PrintsGAN & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
+        FPGC-0 & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
+        Ours & \TODO{fill} & \TODO{fill} & \TODO{fill} & \TODO{fill} \\
         \bottomrule
     \end{tabular}
 \end{table*}
