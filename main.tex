@@ -33,24 +33,27 @@ Paper ID *****}
 \maketitle
 
 \begin{abstract}
-Synthetic fingerprint data can reduce the cost and privacy burden of training
-fingerprint recognition systems, but useful synthetic data must satisfy two
-constraints at once: it must preserve identity-discriminative ridge and minutiae
-structure, and it must cover the sensor-dependent appearance shifts that occur
-in operational deployments.  We present \method, a lightweight two-stage latent
-diffusion pipeline for generating multi-sensor fingerprint impressions.  Stage
-1 samples a fingerprint identity from an unconditional fingerprint latent
-diffusion prior in a compressed VQ-VAE latent space.  Stage 2 turns the
-generated identity into multiple sensor-specific impressions using a
-ridge-conditioned generator, pose-mask alignment, and small control
-perturbations.  For adapting to a new sensor, we freeze the identity model and
-the ridge-control path and fine-tune only LoRA weights in the Stage-2 denoising
-UNet.  This design targets affordable
-research hardware: the base denoiser is compact, sampling uses DDIM in latent
-space, and a sensor adapter is a small LoRA checkpoint rather than a full
-diffusion model.  We use FPGAN-Control as the primary competitor on NIST
-SD302A, and treat SD301A, SD302B, and FVC-style sensor transfer as new
-cross-sensor settings enabled by the proposed ridge-control and adapter design.
+Training fingerprint classifiers is still bottlenecked by data access: useful
+training sets need many impressions per finger, but biometric data is expensive
+to collect, difficult to share, and constrained by privacy regulation.  The
+problem becomes especially concrete when a lab or company deploys a newly
+purchased sensor: only a small calibration set may be available, while
+collecting enough labeled impressions to retrain a robust recognizer is slow
+and legally sensitive.  We present \method, a lightweight synthetic-data
+pipeline for this setting.  Stage 1 samples privacy-preserving virtual
+fingerprint identities from an unconditional latent diffusion prior.  Stage 2
+renders multiple impressions from each identity under target-sensor appearance
+using ridge conditioning, pose-mask alignment, and a small sensor LoRA adapter.
+Unlike recent Stable-Diffusion-based fingerprint generators, our full two-stage
+generator has 53.58M parameters, and the active Stage-2 transfer path has only
+23.39M parameters: 97.3\% fewer than the 860M-parameter Stable Diffusion v1
+UNet alone and 98.5\% fewer than an SD1.5+ControlNet-scale inference stack.
+Adapting a new sensor trains only 12.3K LoRA parameters.  In our current
+50-step DDIM generation run, Stage 2 produces 5,000 $512\times512$ impressions
+in 5,228.7s including saving and QC, or about 1.05s/image.  These efficiency
+properties are intended to make fingerprint data synthesis practical for
+A4000-class research hardware while preserving explicit ridge control for
+recognition utility.
 \end{abstract}
 
 \section{Introduction}
@@ -63,17 +66,24 @@ flow and minutiae configuration, and acquisition-level variation, such as
 sensor noise, contrast, pressure, cropping, pose, and background artifacts.
 Collecting such data is expensive and privacy-sensitive, and the resulting
 datasets are often too small for training robust deep recognizers.
+This bottleneck is most visible when a new sensor is introduced.  The sensor
+may have a different contrast curve, foreground mask, scratch pattern, or
+cropping distribution, but collecting enough repeated impressions from real
+users to retrain a classifier is often impractical at the beginning of
+deployment.
 
 Recent fingerprint generators address this gap by synthesizing multiple
 impressions of each synthetic finger.  FPGAN-Control~\cite{shoshan2023fpgan}
 is the closest baseline for our setting because it is trained and evaluated on
 NIST SD302/N2N and explicitly controls fingerprint appearance.  GenPrint
-\cite{grosz2024genprint} extends the direction to a much broader multimodal
-latent-diffusion framework with text and image conditions, but its reported
-training recipe uses a Stable-Diffusion-scale model, 500k LoRA steps, and 8
-A100 GPUs.  That level of compute is not always available to smaller
-biometrics labs that want to prototype recognition models on commodity GPUs
-such as an NVIDIA RTX A4000.
+\cite{grosz2024genprint} and Ridge Scale Aligned
+Diffusion~\cite{hsu2026ridge} extend the direction with Stable-Diffusion-based
+pipelines, ControlNet-style structure guidance, and image/text style
+conditions.  These designs are powerful, but the inherited backbone is large:
+the public Stable Diffusion v1 configuration uses an 860M-parameter UNet, and
+ControlNet-style inference adds a second large conditional branch.  That level
+of compute is not always available to smaller biometrics labs that want to
+prototype recognition models on commodity GPUs such as an NVIDIA RTX A4000.
 
 This work explores a more pragmatic point in the design space.  Rather than
 fine-tuning a large general-purpose text-to-image model, \method uses a compact
@@ -379,6 +389,34 @@ Figure~\ref{fig:fvc} shows an inspection sheet used to identify FVC sensors
 whose image statistics are close enough to SD302A-style sensors that Stage-2
 LoRA adaptation is likely to work.
 
+We also ran a preliminary FVC 2004 DB1 cross-sensor recognition test.  The
+Stage-2 UNet LoRA adapter was fitted on DB1\_A, then used to generate 500
+synthetic identities with 10 impressions per identity.  We trained the same
+CosFace ResNet50 recognizer on DB1\_A real data and/or these synthetic samples,
+and evaluated all verification pairs on DB1\_B: 80 images, 10 identities, 280
+genuine pairs, and 2,880 impostor pairs.  Table~\ref{tab:fvc_db1_transfer}
+shows that synthetic data improves the real-only recognizer under this
+cross-sensor protocol, although synthetic-only training still transfers poorly
+to real DB1\_B images.
+
+\begin{table*}[t]
+    \centering
+    \caption{Preliminary FVC 2004 DB1 cross-sensor verification.  Recognizers
+    are trained on DB1\_A real data and/or \method samples generated with the
+    DB1\_A Stage-2 UNet LoRA adapter, then evaluated on all DB1\_B verification
+    pairs.  Values are percentages.}
+    \label{tab:fvc_db1_transfer}
+    \begin{tabular}{lccc}
+        \toprule
+        Training set & EER $\downarrow$ & TAR@FAR1\% $\uparrow$ & TAR@FAR0.1\% $\uparrow$ \\
+        \midrule
+        Real only & 28.17 & 6.07 & 1.43 \\
+        Synthetic only, 500$\times$10 & 43.57 & 6.43 & 0.36 \\
+        Real + synthetic, 500$\times$10 & 25.00 & 11.07 & 5.36 \\
+        \bottomrule
+    \end{tabular}
+\end{table*}
+
 \begin{figure}[t]
     \centering
     \includegraphics[width=\linewidth]{figures/fvc_vs_sd302a_sensor_comparison.png}
@@ -396,9 +434,34 @@ compact 64-channel latent UNet and reaches about 7.05 steps/s for global batch
 size 256 on TPU v5p-8 after pre-encoding latents, with stable compiled-step
 time.  For deployment and sensor adaptation, the important point is that a new
 sensor does not require retraining the full generator: only a small Stage-2
-UNet LoRA adapter is optimized.  This is lighter than a full Stable
-Diffusion-scale multi-dataset training recipe such as GenPrint, while retaining
-explicit ridge control for identity preservation.
+UNet LoRA adapter is optimized.  Table~\ref{tab:efficiency} summarizes the
+current parameter accounting.  The full two-stage generator, including the
+shared VQ-VAE decoder, has 53.58M parameters.  The active Stage-2 transfer path
+has 23.39M parameters, which is 97.3\% smaller than the Stable Diffusion v1
+UNet alone and about 98.5\% smaller than an SD1.5+ControlNet-scale inference
+stack.  For a new sensor, only 12.3K LoRA parameters are trained.
+
+\begin{table}[t]
+    \centering
+    \caption{Parameter and throughput accounting for the current \method
+    implementation.  Parameter counts are measured from local checkpoints.}
+    \label{tab:efficiency}
+    \begin{tabular}{p{0.66\linewidth}r}
+        \toprule
+        Component & Parameters \\
+        \midrule
+        Stage-1 identity UNet & 16.33M \\
+        Stage-2 denoising UNet & 16.35M \\
+        Stage-2 ControlNet & 7.04M \\
+        VQ-VAE encoder/decoder/codebook & 13.86M \\
+        Full two-stage generator & 53.58M \\
+        Active Stage-2 transfer path & 23.39M \\
+        Trainable LoRA per new sensor & 12.3K \\
+        \midrule
+        Logged Stage-2 generation throughput & 1.05 s/image \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \begin{table}[t]
     \centering
