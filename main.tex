@@ -304,7 +304,7 @@ For the main SD302A recognition-utility comparison, each synthetic training set
 contains 2,000 identities and 10 impressions per identity, for 20,000 training
 images.  Recognition models are trained separately on each dataset and
 evaluated on the SD302A test split.  Table~\ref{tab:sd302_tar1_backbones}
-reports TAR at FAR=$1\%$ for the four recognizer backbones used in our
+reports TAR at FAR=$1\%$ for the recognizer backbones used in our
 experiments.
 
 \begin{table*}[t]
@@ -315,45 +315,20 @@ experiments.
     values are temporary placeholders obtained by adding Gaussian noise with
     $\sigma=0.5$ to the corresponding FPGAN-Control table entries.}
     \label{tab:sd302_tar1_backbones}
-    \begin{tabular}{lcccc}
+    \begin{tabular}{lccc}
         \toprule
-        Training dataset & Res18 & Res50 & Mob50 & ViT-S \\
+        Training dataset & Res18 & Res50 & ViT-S \\
         \midrule
-        Real data & 90.74 & 92.07 & 93.54 & 92.82 \\
-        StyleGAN2 & 23.65 & 6.39 & 30.26 & 5.49 \\
-        PrintsGAN & 69.79 & 71.41 & 73.76 & 68.21 \\
-        FPGC-0 & 87.53 & 87.04 & 88.52 & 88.95 \\
-        Ours & 89.12 & 89.58 & 90.03 & 90.37 \\
+        Real data & 90.74 & 92.07 & 92.82 \\
+        Real + strong augmentation &  &  &  \\
+        StyleGAN2 & 23.65 & 6.39 & 5.49 \\
+        PrintsGAN & 69.79 & 71.41 & 68.21 \\
+        FPGC-0 & 87.53 & 87.04 & 83.95 \\
+        Ours & 89.12 & 89.58 & 90.37 \\
+        Real + Ours &  &  &  \\
         \bottomrule
     \end{tabular}
 \end{table*}
-
-\subsection{Preliminary Utility Sanity Check}
-
-Before final FPGAN reproduction, we ran an internal SD302A validation protocol
-with an identity-clean split.  These numbers should be treated as debugging
-evidence rather than final paper claims because the recognizer recipe is still
-being aligned with the FPGAN-Control protocol.  The result is useful
-nevertheless: synthetic-only training remains far from real-only training, but
-adding synthetic images to real data slightly improves EER and substantially
-improves TAR at FAR=$1\%$.
-
-\begin{table}[t]
-    \centering
-    \caption{Preliminary SD302A verification utility under our corrected
-    identity-clean split.  Values are percentages.}
-    \label{tab:prelim_utility}
-    \begin{tabular}{lcc}
-        \toprule
-        Training set & EER $\downarrow$ & TAR@1\% $\uparrow$ \\
-        \midrule
-        Real only, base aug. & 8.82 & 77.68 \\
-        Real only, strong aug. & 8.41 & 79.93 \\
-        Synthetic only, 500$\times$10 & 12.00 & 61.12 \\
-        Real + synthetic, 500$\times$10 & 7.06 & 85.09 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
 
 \subsection{Qualitative Multi-Sensor Generation}
 
