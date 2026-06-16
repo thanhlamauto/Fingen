@@ -46,7 +46,7 @@ renders multiple impressions from each identity under target-sensor appearance
 using ridge conditioning, pose-mask alignment, and a small sensor LoRA adapter.
 Compared with recent Stable-Diffusion-based fingerprint generators, our active
 Stage-2 transfer path uses only 23.39M parameters, reducing the generator
-backbone size by 97.3--98.5\%.  This compact design targets A4000-class
+backbone size by 97.3--98.5\%.  This compact design targets low-end GPU
 research hardware while preserving explicit ridge control for recognition
 utility.
 \end{abstract}
@@ -67,6 +67,14 @@ cropping distribution, but collecting enough repeated impressions from real
 users to retrain a classifier is often impractical at the beginning of
 deployment.
 
+The same pressure has already made synthetic data an important direction in
+face recognition, where rendered and diffusion-generated identities are used to
+reduce dependence on web-crawled personal images and consent-limited
+collections~\cite{bae2023digiface,kim2023dcface}.  Fingerprints pose a related
+but more structural version of the problem: useful synthetic data must preserve
+ridge and minutiae identity while producing realistic impression-level changes
+under different acquisition devices.
+
 Recent fingerprint generators address this gap by synthesizing multiple
 impressions of each synthetic finger.  FPGAN-Control~\cite{shoshan2023fpgan}
 is the closest baseline for our setting because it is trained and evaluated on
@@ -78,7 +86,7 @@ conditions.  These designs are powerful, but the inherited backbone is large:
 the public Stable Diffusion v1 configuration uses an 860M-parameter UNet, and
 ControlNet-style inference adds a second large conditional branch.  That level
 of compute is not always available to smaller biometrics labs that want to
-prototype recognition models on commodity GPUs such as an NVIDIA RTX A4000.
+prototype recognition models on low-end GPUs.
 
 This work explores a more pragmatic point in the design space.  Rather than
 fine-tuning a large general-purpose text-to-image model, \method uses a compact
@@ -94,15 +102,11 @@ remain frozen.
 Our contributions are:
 \begin{itemize}
     \item A lightweight two-stage latent diffusion pipeline that separates
-    unconditional identity generation from sensor-specific impression rendering.
-    \item A Stage-2 ridge-conditioned synthesis module with pose-mask alignment
-    and mild control augmentation, reducing over-constrained pose transfer from
-    the source identity ridge.
-    \item A parameter-efficient sensor adaptation protocol that fine-tunes only
-    LoRA weights in the Stage-2 denoising UNet.
-    \item An evaluation plan centered on SD302A comparison to FPGAN-Control,
-    with SD301A, SD302B, and FVC-style sensors used as cross-sensor
-    generalization contributions rather than additional baseline comparisons.
+    unconditional fingerprint identity generation from ridge-conditioned,
+    sensor-specific impression rendering.
+    \item A Stage-2 UNet LoRA adaptation framework for transferring the
+    generator to new sensors while keeping the identity prior and ridge-control
+    path frozen.
 \end{itemize}
 
 \section{Related Work}
@@ -467,7 +471,7 @@ stack.  For a new sensor, only 12.3K LoRA parameters are trained.
         Method & Strength & Limitation addressed by \method \\
         \midrule
         FPGAN-Control & Strong SD302A controllable baseline & We add lightweight diffusion, explicit ridge rendering, and LoRA sensor adapters. \\
-        GenPrint & Broad multimodal diffusion and zero-shot style control & We target smaller models and cheaper adaptation for A4000-class labs. \\
+        GenPrint & Broad multimodal diffusion and zero-shot style control & We target smaller models and cheaper adaptation for labs with low-end GPUs. \\
         \method & Compact latent diffusion with ridge control & Current recognizer-transfer gap remains the main open issue. \\
         \bottomrule
     \end{tabular}
@@ -494,7 +498,7 @@ unconditional latent identity model, ridge-conditioned instance generation,
 pose-mask alignment, and Stage-2 UNet LoRA adapters for unseen sensors.  The
 method is positioned against FPGAN-Control on SD302A, while
 SD301A, SD302B, and FVC-style sensors define the cross-sensor extension.  The
-remaining work is to finalize the FPGAN-Control comparison, benchmark A4000
+remaining work is to finalize the FPGAN-Control comparison, benchmark low-end GPU
 sampling and LoRA fine-tuning cost, and close the observed recognizer-transfer
 gap with stronger ridge/minutiae realism metrics.
 
