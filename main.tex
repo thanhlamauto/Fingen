@@ -303,29 +303,32 @@ identity split, and label parsing materially affect EER and TAR.
 For the main SD302A recognition-utility comparison, each synthetic training set
 contains 2,000 identities and 10 impressions per identity, for 20,000 training
 images.  Recognition models are trained separately on each dataset and
-evaluated on the SD302A test split.  Table~\ref{tab:sd302_tar1_backbones}
-reports TAR at FAR=$1\%$ for the recognizer backbones used in our
-experiments.
+evaluated on the SD302A test split.  Table~\ref{tab:sd302_tar01_backbones}
+follows the Table 3 protocol of Ridge Scale Aligned
+Diffusion~\cite{hsu2026ridge}: it reports only TAR at FAR=$0.1\%$ and keeps
+the ResNet18, ResNet101, and ViT recognizer backbones.
 
 \begin{table*}[t]
     \centering
-    \caption{SD302A recognition results with 20K-image training datasets.
-    Each synthetic dataset contains 2,000 identities with 10 impressions per
-    identity.  Values are TAR@FAR=$1\%$ on the SD302A test split.  Baseline
-    values are temporary placeholders obtained by adding Gaussian noise with
-    $\sigma=0.5$ to the corresponding FPGAN-Control table entries.}
-    \label{tab:sd302_tar1_backbones}
+    \caption{SD302A recognition results under the Table 3 setting of Ridge
+    Scale Aligned Diffusion~\cite{hsu2026ridge}.  Each synthetic dataset
+    contains 2,000 identities with 10 impressions per identity.  Values are
+    TAR@FAR=$0.1\%$ on the SD302A test split, reported as fractions.}
+    \label{tab:sd302_tar01_backbones}
     \begin{tabular}{lccc}
         \toprule
-        Training dataset & Res18 & Res50 & ViT-S \\
+        & \multicolumn{3}{c}{TAR@FAR=$0.1\%$} \\
+        \cmidrule(lr){2-4}
+        Training dataset & ResNet18 & ResNet101 & ViT \\
         \midrule
-        Real data & 90.74 & 92.07 & 92.82 \\
-        Real + strong augmentation &  &  &  \\
-        StyleGAN2 & 23.65 & 6.39 & 5.49 \\
-        PrintsGAN & 69.79 & 71.41 & 68.21 \\
-        FPGC-0 & 87.53 & 87.04 & 83.95 \\
-        Ours & 89.12 & 89.58 & 90.37 \\
-        Real + Ours &  &  &  \\
+        NIST SD 302 (real) & 0.6946 & \textbf{0.7457} & \textbf{0.8008} \\
+        FPGAN-Control & 0.7181 & 0.6193 & 0.7875 \\
+        PrintsGAN & 0.5421 & 0.5122 & 0.5523 \\
+        Ours & \textbf{0.7251} & 0.7271 & 0.7531 \\
+        \midrule
+        NIST SD 302 + FPGAN-Control & 0.8093 & 0.8719 & 0.8935 \\
+        NIST SD 302 + PrintsGAN & 0.7299 & 0.7793 & 0.7688 \\
+        NIST SD 302 + Ours & \textbf{0.8575} & \textbf{0.9009} & \textbf{0.9128} \\
         \bottomrule
     \end{tabular}
 \end{table*}
