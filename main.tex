@@ -44,16 +44,11 @@ pipeline for this setting.  Stage 1 samples privacy-preserving virtual
 fingerprint identities from an unconditional latent diffusion prior.  Stage 2
 renders multiple impressions from each identity under target-sensor appearance
 using ridge conditioning, pose-mask alignment, and a small sensor LoRA adapter.
-Unlike recent Stable-Diffusion-based fingerprint generators, our full two-stage
-generator has 53.58M parameters, and the active Stage-2 transfer path has only
-23.39M parameters: 97.3\% fewer than the 860M-parameter Stable Diffusion v1
-UNet alone and 98.5\% fewer than an SD1.5+ControlNet-scale inference stack.
-Adapting a new sensor trains only 12.3K LoRA parameters.  In our current
-50-step DDIM generation run, Stage 2 produces 5,000 $512\times512$ impressions
-in 5,228.7s including saving and QC, or about 1.05s/image.  These efficiency
-properties are intended to make fingerprint data synthesis practical for
-A4000-class research hardware while preserving explicit ridge control for
-recognition utility.
+Compared with recent Stable-Diffusion-based fingerprint generators, our active
+Stage-2 transfer path uses only 23.39M parameters, reducing the generator
+backbone size by 97.3--98.5\%.  This compact design targets A4000-class
+research hardware while preserving explicit ridge control for recognition
+utility.
 \end{abstract}
 
 \section{Introduction}
