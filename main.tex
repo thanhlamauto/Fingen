@@ -408,7 +408,10 @@ to real DB1\_B images.
     \label{fig:fvc}
 \end{figure}
 
-\subsection{Ablation Study: First-Stage Latent Resolution}
+\section{Ablation Study}
+\label{sec:ablation}
+
+\subsection{First-Stage Latent Resolution}
 
 We use a relatively high-resolution $128 \times 128 \times 3$ VQ-VAE latent
 instead of a conventional $32 \times 32$ LDM-style latent.  This choice is
@@ -421,13 +424,25 @@ decoding.  This does not introduce a separately trained weaker autoencoder;
 it directly tests how much ridge information is lost when the diffusion latent
 is forced through a low spatial bottleneck.
 
-Table~\ref{tab:latent_resolution_ablation} and
-Figure~\ref{fig:latent_resolution_ablation} show that the $128 \times 128$
+Figure~\ref{fig:latent_resolution_ablation} and
+Table~\ref{tab:latent_resolution_ablation} show that the $128 \times 128$
 VQ-VAE preserves fingerprint ridges almost exactly under a two-pixel matching
 tolerance, while the $32 \times 32$ bottleneck removes most ridge detail and
 turns minutiae-bearing structures into broad intensity blobs.  This supports
 using the larger VQ-VAE latent despite the extra diffusion cost: Stage 1 must
 produce a ridge identity that can later be extracted and controlled by Stage 2.
+
+\begin{figure*}[!t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
+    \caption{Qualitative first-stage latent-resolution ablation.  Black pixels
+    in the diff columns are matched ridges, red pixels are real ridges missed by
+    the reconstruction, and green pixels are extra reconstructed ridges.  The
+    $128 \times 128$ VQ-VAE latent retains ridge topology, whereas the
+    $32 \times 32$ bottleneck proxy loses the local ridge pattern needed for
+    fingerprint identity.}
+    \label{fig:latent_resolution_ablation}
+\end{figure*}
 
 \begin{table*}[t]
     \centering
@@ -447,17 +462,60 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
     \end{tabular}
 \end{table*}
 
+\subsection{Sensor-Quality Proxy Assessment}
+
+Ridge Scale Aligned Diffusion~\cite{hsu2026ridge} evaluates synthetic quality
+across sensors with NFIQ 2.0 and NIQE in its Section 4.3.  As a lightweight
+ablation with the tools available in this environment, we compute a
+ridge-clarity proxy instead:
+the mean local intensity standard deviation inside the estimated fingerprint
+foreground.  This proxy is not a replacement for NFIQ 2.0 or NIQE, but it
+checks whether the generated samples match the sensor-dependent ridge sharpness
+statistics of real SD302A images.  For each sensor A--H, we sample 250 real and
+250 synthetic images, compute the proxy at $256 \times 256$ resolution, and
+apply Welch's two-sample test.
+
+Table~\ref{tab:sensor_quality_proxy} and
+Figure~\ref{fig:sensor_quality_proxy} show that the current generator does not
+perfectly match all sensor quality profiles.  Sensors C and F are relatively
+close, A and E are sharper than real under this proxy, while D, G, and H remain
+under-sharpened compared with real samples.  This mirrors the qualitative
+observation that sensor style transfer is not uniform across SD302A sensors.
+
+\begin{table*}[t]
+    \centering
+    \small
+    \caption{Sensor-wise ridge-clarity proxy ablation on SD302A.  Values are
+    mean$\pm$std over 250 real and 250 synthetic images per sensor.  The proxy
+    is foreground local-contrast mean; higher values indicate sharper ridge
+    texture.}
+    \label{tab:sensor_quality_proxy}
+    \begin{tabular}{lcccc}
+        \toprule
+        Sensor & Real & Synthetic & $\Delta$ & $p$-value \\
+        \midrule
+        A & 0.080$\pm$0.011 & 0.167$\pm$0.059 & +0.086 & $4.5{\times}10^{-65}$ \\
+        B & 0.180$\pm$0.027 & 0.153$\pm$0.064 & -0.027 & $1.3{\times}10^{-9}$ \\
+        C & 0.168$\pm$0.034 & 0.175$\pm$0.038 & +0.007 & 0.043 \\
+        D & 0.249$\pm$0.142 & 0.153$\pm$0.060 & -0.096 & $2.4{\times}10^{-20}$ \\
+        E & 0.139$\pm$0.026 & 0.165$\pm$0.036 & +0.025 & $4.8{\times}10^{-18}$ \\
+        F & 0.167$\pm$0.009 & 0.161$\pm$0.048 & -0.007 & 0.031 \\
+        G & 0.189$\pm$0.023 & 0.159$\pm$0.040 & -0.030 & $2.3{\times}10^{-22}$ \\
+        H & 0.326$\pm$0.011 & 0.152$\pm$0.063 & -0.173 & $1.3{\times}10^{-121}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table*}
+
 \begin{figure*}[t]
     \centering
-    \includegraphics[width=\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
-    \caption{Qualitative first-stage latent-resolution ablation.  Black pixels
-    in the diff columns are matched ridges, red pixels are real ridges missed by
-    the reconstruction, and green pixels are extra reconstructed ridges.  The
-    $128 \times 128$ VQ-VAE latent retains ridge topology, whereas the
-    $32 \times 32$ bottleneck proxy loses the local ridge pattern needed for
-    fingerprint identity.}
-    \label{fig:latent_resolution_ablation}
+    \includegraphics[width=\linewidth]{figures/ablation_sensor_quality_proxy.png}
+    \caption{Distribution summary for the SD302A sensor-quality proxy
+    ablation.  Error bars show one standard deviation.}
+    \label{fig:sensor_quality_proxy}
 \end{figure*}
+
+\section{Efficiency and Positioning}
+\label{sec:efficiency}
 
 \subsection{Lightweight Design}
 
