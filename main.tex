@@ -360,24 +360,27 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.78\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
-    \caption{Qualitative first-stage latent-resolution ablation.  Black pixels
-    in the diff columns are matched ridges, red pixels are real ridges missed by
-    the reconstruction, and green pixels are extra reconstructed ridges.  The
+    \includegraphics[width=0.58\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
+    \caption{Qualitative first-stage latent-resolution ablation.  The
     $128 \times 128$ VQ-VAE latent retains ridge topology, whereas the
-    $32 \times 32$ bottleneck proxy loses the local ridge pattern needed for
-    fingerprint identity.}
+    $32 \times 32$ bottleneck proxy loses local ridge structure.  Diff columns
+    use black for matched ridges, red for missed ridges, and green for extra
+    ridges.}
     \label{fig:latent_resolution_ablation}
-\end{figure}
 
-\begin{table}[!htbp]
-    \centering
-    \small
+    \vspace{-0.4em}
+    \begingroup
+    \makeatletter
+    \def\@captype{table}
+    \makeatother
+    \footnotesize
     \caption{First-stage latent-resolution ablation on four SD302A examples.
-    The $32 \times 32$ variant is a latent-bottleneck proxy using the same
-    trained decoder.  Ridge F1 uses ridge maps extracted from real and
-    reconstructed images with a two-pixel tolerance.}
+    The $32 \times 32$ row uses the same decoder with a latent-bottleneck
+    proxy; Ridge F1 uses a two-pixel tolerance.}
     \label{tab:latent_resolution_ablation}
+    \scriptsize
+    \setlength{\tabcolsep}{4.5pt}
+    \renewcommand{\arraystretch}{0.9}
     \begin{tabular}{lcccc}
         \toprule
         First stage & MAE $\downarrow$ & Grad. corr. $\uparrow$ & Ridge F1 $\uparrow$ & Ridge px. ratio \\
@@ -386,7 +389,8 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
         Latent bottleneck $32^2$ & 0.224 & -0.058 & 0.219 & 0.11 \\
         \bottomrule
     \end{tabular}
-\end{table}
+    \endgroup
+\end{figure}
 \FloatBarrier
 
 \subsection{Sensor-Quality Proxy Assessment}
