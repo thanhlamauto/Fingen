@@ -200,40 +200,50 @@ map and the selected target-sensor rendering parameters.
 
 \subsection{Fingerprint VQ-VAE Latent Space}
 
-Stage 1 needs a compact representation that removes redundant grayscale detail
-without destroying the ridge topology that defines a fingerprint identity.
-Following the VQ-VAE-based identity representation used in
-IMPOSE~\cite{pan2026impose}, we encode each aligned $512 \times 512$
-fingerprint image $x$ into a continuous latent grid $z_\ell=E(x)$ and replace
-each local vector by its nearest entry in a learned codebook.  This produces a
-quantized latent $z_q$ that can be decoded back to image space by $D(z_q)$.
-The codebook converts local ridge texture into a finite set of reusable
-patterns, so the latent space keeps the joint structure of ridge flow,
-frequency, and minutiae while discarding pixel-level redundancy.
+We build the generator on a hierarchical fingerprint representation that
+combines discrete latent modeling with latent diffusion using a VQ-VAE
+codebook latent~\cite{oord2017vqvae,pan2026impose}.  The goal of this first
+representation stage is to compress away redundant grayscale variation while
+keeping the ridge topology that defines the identity of a finger.  For an
+aligned $512 \times 512$ fingerprint image $x$, the encoder $E$ first produces
+a continuous latent grid
+\[
+    z_\ell = E(x) \in \mathbb{R}^{128 \times 128 \times 3}.
+\]
+Each local latent vector is then replaced by the nearest entry in a learned
+codebook $\mathcal{C}=\{e_k\}_{k=1}^{N_C}$:
+\[
+    k^\star(i,j)=
+    \arg\min_{k \in \{1,\ldots,N_C\}}
+    \left\|z_\ell(i,j)-e_k\right\|_2,
+    \qquad
+    z_q(i,j)=e_{k^\star(i,j)}.
+\]
+In our implementation, the codebook contains $N_C=4096$ vectors and each vector
+has dimension 3, matching the three latent channels.  The decoder $D$ maps the
+quantized latent $z_q$ back to image space.  Because similar ridge fragments
+share codebook entries, this discrete representation reduces pixel-level
+redundancy while still modeling the joint distribution of local ridge
+orientation, ridge frequency, and minutiae-like structures.
 
-We deliberately keep this bottleneck mild.  A $512 \times 512$ image is mapped
-to a $128 \times 128 \times 3$ latent grid, corresponding to only $4\times$
-spatial downsampling with three latent channels.  This design follows the
-fingerprint-specific intuition of IMPOSE: unlike natural-image synthesis,
-fingerprint generation cannot tolerate a coarse latent space that blurs ridge
-continuity or changes minutiae layout.  After VQ-VAE training, the encoder,
-codebook, and decoder are frozen.  Stage 1 learns a prior over these
-fingerprint latents, while Stage 2 reuses the same latent space to render
-sensor-specific impressions from ridge conditions.
+The spatial bottleneck is intentionally conservative.  The $128 \times 128$
+latent grid corresponds to only $4\times$ spatial downsampling from the input
+image.  This is larger than the usual latent grid in many natural-image latent
+diffusion systems, but it is necessary for fingerprints: once ridge flow is
+blurred or minutiae are merged inside the autoencoder, the downstream diffusion
+model cannot reliably recover the original identity.  After training this
+fingerprint VQ-VAE, we freeze the encoder, codebook, and decoder.  Stage 1
+learns a diffusion prior over $z_q$, and Stage 2 reuses the same decoder-facing
+latent space to render sensor-specific impressions from ridge conditions.
 
 \subsection{Unconditional Identity Generation}
 
-The first diffusion stage synthesizes virtual fingerprint identities that serve
-as references for the rest of the pipeline.  We train a U-Net denoiser on the
-VQ-VAE latent space rather than directly in pixel space.  During training, an
-aligned fingerprint is encoded and quantized into $z_q$, noise is added to
-obtain $z_t$, and the denoiser learns to recover the sampled noise.  The model
-is unconditional: it receives no sensor label, reference image set, or style
-descriptor, so the sampled identity is not tied to any particular acquisition
-device.
-
-Stage 1 therefore instantiates the preliminary noise-prediction objective with
-an empty condition:
+The first diffusion stage establishes the synthetic identities used by the
+entire pipeline.  It is trained on the codebook-quantized fingerprint latents
+rather than on raw pixels.  Given a training image, we encode and quantize it
+into $z_q$, sample a diffusion timestep $t$, and corrupt the latent with
+Gaussian noise to obtain $z_t$.  A U-Net denoising network then predicts the
+noise in the VQ-VAE latent space:
 \[
     \mathcal{L}_{\text{stage1}} =
     \mathbb{E}_{z_q,t,\epsilon}
@@ -241,15 +251,27 @@ an empty condition:
         \epsilon - \epsilon_\theta(z_t,t)
     \right\|_1\right].
 \]
-At inference time, sampling starts from Gaussian latent noise
-$z_T \sim \mathcal{N}(0,\mathbf{I})$ and runs the reverse denoising process to
-estimate a clean identity latent $\hat{z}_0$.  Before decoding, we project
-$\hat{z}_0$ back through the VQ codebook so the generated representation stays
-on the learned fingerprint manifold instead of drifting into arbitrary
-continuous features.  The frozen decoder then produces a base identity image
-$\hat{x}^{id}=D(\hat{z}_q)$.  We use this image only as an identity source: its
-ridge map is extracted and passed to Stage 2, where sensor appearance and
-impression-level variation are introduced.
+The model is deliberately unconditional: it receives no sensor label, reference
+image set, text prompt, or learned style descriptor.  This keeps the first
+stage focused on sampling new ridge identities instead of entangling identity
+with a particular sensor appearance.
+
+At inference time, we draw random latent noise
+$z_T \sim \mathcal{N}(0,\mathbf{I})$ and iteratively denoise it for $T$ reverse
+steps.  The resulting continuous estimate $\hat{z}_0$ is not decoded directly.
+Instead, we pass it through the same codebook nearest-neighbor projection used
+by the VQ-VAE:
+\[
+    \hat{z}_q(i,j)=
+    e_{\arg\min_k \left\|\hat{z}_0(i,j)-e_k\right\|_2}.
+\]
+This final quantization step forces the generated latent back onto the learned
+fingerprint manifold and prevents the decoder from receiving arbitrary
+off-codebook features.  The frozen decoder then produces the base identity
+image $\hat{x}^{id}=D(\hat{z}_q)$.  This image is not treated as the final
+synthetic sample; it is the identity reference from which we extract the ridge
+condition for Stage 2.  Sensor style, pose variation, and local acquisition
+artifacts are introduced only in the second stage.
 
 \subsection{Ridge-Conditioned Instance Generation}
 
