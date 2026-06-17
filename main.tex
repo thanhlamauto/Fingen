@@ -286,8 +286,9 @@ contact and rolled sensors used for sensor-transfer studies.  FVC 2004 provides
 compact benchmarks with sensor styles that differ from SD302A.  For FVC 2004
 DB1, the Stage-2 UNet LoRA adapter is fitted from the 80 available DB1\_A
 images, then used to generate synthetic training identities for cross-sensor
-recognition on DB1\_B.  Table~\ref{tab:fvc_db1_transfer} follows the same
-recognizer-backbone format as the SD302A comparison.
+recognition on DB1\_B.  Because this sensor-transfer setting depends on our
+LoRA adapter, Table~\ref{tab:fvc_db1_transfer} reports only the real baseline,
+\method samples, and their combination.
 
 \begin{table}[!htbp]
     \centering
@@ -304,12 +305,8 @@ recognizer-backbone format as the SD302A comparison.
         Training dataset & ResNet18 & ResNet50 & ViT \\
         \midrule
         FVC 2004 DB1\_A (real) &  &  &  \\
-        FPGAN-Control &  &  &  \\
-        PrintsGAN &  &  &  \\
         Ours &  &  &  \\
         \midrule
-        FVC 2004 DB1\_A + FPGAN-Control &  &  &  \\
-        FVC 2004 DB1\_A + PrintsGAN &  &  &  \\
         FVC 2004 DB1\_A + Ours &  &  &  \\
         \bottomrule
     \end{tabular}
