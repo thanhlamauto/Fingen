@@ -217,96 +217,30 @@ control perturbations: small rotations, translations, rare horizontal flips,
 ridge dropout, speckle, and light morphology.  These perturbations provide
 intra-class variation while keeping minutiae topology mostly intact.
 
-\section{Experimental Setup}
-\label{sec:experiments}
-
-\subsection{Datasets}
-
-\paragraph{NIST SD302A.}
-SD302A~\cite{nist302} is the primary benchmark and the only dataset on which we compare
-against FPGAN-Control.  Our current SD302A split uses identity-clean finger
-labels, where filenames of the form
-\texttt{SUBJECT\_SENSOR\_CAPTURE\_FRGP} are mapped to \texttt{SUBJECT\_FRGP}.
-The held-out validation split contains 400 finger identities and 2,734 images.
-
-\paragraph{Additional sensor data.}
-SD301A~\cite{nist301} and SD302B are used to increase sensor coverage for our generator.
-Only 500 ppi images are used when a dataset provides duplicate 500/1000 ppi
-versions of the same impression.  FVC 2004~\cite{fvc2004} sensors are used for qualitative
-and zero/few-shot sensor-transfer studies.  We do not compare to FPGAN-Control
-on these datasets because they are outside the baseline's primary SD302A
-setting and constitute the additional contribution of this work.
-
-\subsection{Generation Protocol}
-
-For a synthetic dataset with 500 identities and 10 impressions per identity,
-Stage 1 samples identity images unconditionally.  Each identity image is
-ridge-extracted and passed to Stage 2.  The 10 impressions are generated across
-target sensors A--H using the corresponding target-sensor renderer or adapter.
-In the pose-aligned setting, each sensor cycles through a library of up to 32
-pose masks.
-
-\begin{table}[t]
-    \centering
-    \caption{Main generation configuration used in the current SD302A
-    synthetic dataset.}
-    \label{tab:generation_config}
-    \begin{tabular}{ll}
-        \toprule
-        Item & Setting \\
-        \midrule
-        Image resolution & $512 \times 512$ grayscale \\
-        Latent resolution & $128 \times 128 \times 3$ \\
-        Stage-1 condition & none; unconditional latent prior \\
-        Stage-1 injection & none \\
-        Stage-2 condition & ridge map + target-sensor renderer/adapters \\
-        Synthetic set & 500 identities, 10 impressions each \\
-        SD302A target sensors & A, B, C, D, E, F, G, H \\
-        Pose masks & up to 32 per sensor, cycled \\
-        Sampler & DDIM, 50 steps \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\subsection{Recognition Utility Protocol}
-
-Following the spirit of FPGAN-Control, the main utility metric is whether
-synthetic fingerprints can train a fingerprint recognizer that transfers to
-real held-out fingerprints.  We train a ResNet50 embedding model with CosFace
-supervision and evaluate all genuine and impostor pairs on the SD302A held-out
-split.  We report equal error rate (EER) and true accept rate (TAR) at
-FAR=$1\%$ and FAR=$0.1\%$.  Train/validation leakage is avoided by splitting
-real data by identity and by using synthetic identities that do not appear in
-the real validation set.
-
-\subsection{FPGAN-Control Comparison Protocol}
-
-FPGAN-Control is the primary baseline.  The final paper comparison should use
-one of two protocols:
-\begin{itemize}
-    \item \textbf{Paper-number comparison:} report FPGAN-Control's published
-    SD302A/N2N recognition-utility numbers and evaluate \method under the
-    closest matching synthetic-only and real-plus-synthetic protocols.
-    \item \textbf{Reproduced comparison:} generate or obtain FPGAN-Control
-    samples with the same number of identities, impressions, and SD302A sensor
-    distribution as \method, then train the same recognizer and run the same
-    pairwise verification code.
-\end{itemize}
-The reproduced comparison is preferred because recognizer architecture,
-identity split, and label parsing materially affect EER and TAR.
-
-\section{Results and Discussion}
+\section{Experiments and Results}
 \label{sec:results}
+
+\subsection{Experimental Setting}
+
+NIST SD302A~\cite{nist302} is the main benchmark and the only dataset on which
+we compare with FPGAN-Control.  We split real data by finger identity after
+stripping sensor and capture suffixes from filenames, and use a held-out
+SD302A test split with 400 finger identities and 2,734 images.  Unless stated
+otherwise, synthetic training sets contain 2,000 identities with 10 impressions
+per identity at $512 \times 512$ resolution.  Stage 1 samples identities from
+the unconditional latent prior; Stage 2 renders ridge-conditioned impressions
+with DDIM-50 sampling across target sensors.  Recognition utility follows the
+Table 3 setting of Ridge Scale Aligned Diffusion~\cite{hsu2026ridge}: train
+recognizers on real, synthetic, or real-plus-synthetic data and report
+TAR@FAR=$0.1\%$ on the held-out SD302A test split.  SD301A~\cite{nist301},
+SD302B, and FVC 2004~\cite{fvc2004} are used only for additional sensor
+coverage and cross-sensor transfer studies.
 
 \subsection{SD302A Comparison to FPGAN-Control}
 
-For the main SD302A recognition-utility comparison, each synthetic training set
-contains 2,000 identities and 10 impressions per identity, for 20,000 training
-images.  Recognition models are trained separately on each dataset and
-evaluated on the SD302A test split.  Table~\ref{tab:sd302_tar01_backbones}
-follows the Table 3 protocol of Ridge Scale Aligned
-Diffusion~\cite{hsu2026ridge}: it reports only TAR at FAR=$0.1\%$ and keeps
-the ResNet18, ResNet50, and ViT recognizer backbones.
+Table~\ref{tab:sd302_tar01_backbones} reports the SD302A recognition-utility
+comparison using ResNet18, ResNet50, and ViT recognizer backbones.  Each
+synthetic dataset contains 20,000 training images.
 
 \begin{table*}[t]
     \centering
