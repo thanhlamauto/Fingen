@@ -200,50 +200,79 @@ map and the selected target-sensor rendering parameters.
 
 \subsection{Fingerprint VQ-VAE Latent Space}
 
-We use a fingerprint-specific VQ-VAE front end following the motivation of
-IMPOSE~\cite{pan2026impose}, which performs rolled fingerprint identity
-generation in a latent diffusion space with discrete codebook representations.
-The important design choice for our setting is that the autoencoder is trained
-on fingerprint imagery rather than on natural images, so the latent space is
-biased toward preserving ridge flow, local ridge frequency, and minutiae-level
-structure.  After this autoencoder is trained, both its encoder and decoder are
-kept frozen: Stage 1 learns a prior over fingerprint latents, and Stage 2
-renders sensor-specific impressions in the same latent space.
+Stage 1 needs a compact representation that removes redundant grayscale detail
+without destroying the ridge topology that defines a fingerprint identity.
+Following the VQ-VAE-based identity representation used in
+IMPOSE~\cite{pan2026impose}, we encode each aligned $512 \times 512$
+fingerprint image $x$ into a continuous latent grid $z_\ell=E(x)$ and replace
+each local vector by its nearest entry in a learned codebook.  This produces a
+quantized latent $z_q$ that can be decoded back to image space by $D(z_q)$.
+The codebook converts local ridge texture into a finite set of reusable
+patterns, so the latent space keeps the joint structure of ridge flow,
+frequency, and minutiae while discarding pixel-level redundancy.
 
-Our use of this VQ-VAE differs from IMPOSE in scope.  IMPOSE targets
-contactless fingerprint generation and combines latent identity generation with
-cross-modal translation and 3D pose simulation.  We only adopt the
-fingerprint-latent representation; sensor adaptation is handled by the
-ridge-conditioned Stage-2 renderer and LoRA adapters.  We keep the latent grid
-relatively high-resolution, $128 \times 128 \times 3$ for a $512 \times 512$
-image, because aggressive spatial compression removes ridge detail needed for
-later ridge extraction and recognition.
+We deliberately keep this bottleneck mild.  A $512 \times 512$ image is mapped
+to a $128 \times 128 \times 3$ latent grid, corresponding to only $4\times$
+spatial downsampling with three latent channels.  This design follows the
+fingerprint-specific intuition of IMPOSE: unlike natural-image synthesis,
+fingerprint generation cannot tolerate a coarse latent space that blurs ridge
+continuity or changes minutiae layout.  After VQ-VAE training, the encoder,
+codebook, and decoder are frozen.  Stage 1 learns a prior over these
+fingerprint latents, while Stage 2 reuses the same latent space to render
+sensor-specific impressions from ridge conditions.
 
 \subsection{Unconditional Identity Generation}
 
-Stage 1 is an unconditional latent diffusion model trained on fingerprint
-latents.  It does not receive a sensor label, reference image set, or learned
-style descriptor.  This choice keeps the identity prior compact and avoids
-coupling the sampled ridge identity to a particular acquisition style.  The
-generated image is used only as an identity source; its ridge map is extracted
-and passed to Stage 2 for sensor-specific rendering.
+The first diffusion stage synthesizes virtual fingerprint identities that serve
+as references for the rest of the pipeline.  We train a U-Net denoiser on the
+VQ-VAE latent space rather than directly in pixel space.  During training, an
+aligned fingerprint is encoded and quantized into $z_q$, noise is added to
+obtain $z_t$, and the denoiser learns to recover the sampled noise.  The model
+is unconditional: it receives no sensor label, reference image set, or style
+descriptor, so the sampled identity is not tied to any particular acquisition
+device.
 
-Stage 1 instantiates the preliminary noise-prediction objective without a
-condition:
+Stage 1 therefore instantiates the preliminary noise-prediction objective with
+an empty condition:
 \[
     \mathcal{L}_{\text{stage1}} =
-    \mathbb{E}_{z,t,\epsilon}
+    \mathbb{E}_{z_q,t,\epsilon}
     \left[\left\|
         \epsilon - \epsilon_\theta(z_t,t)
     \right\|_1\right].
 \]
+At inference time, sampling starts from Gaussian latent noise
+$z_T \sim \mathcal{N}(0,\mathbf{I})$ and runs the reverse denoising process to
+estimate a clean identity latent $\hat{z}_0$.  Before decoding, we project
+$\hat{z}_0$ back through the VQ codebook so the generated representation stays
+on the learned fingerprint manifold instead of drifting into arbitrary
+continuous features.  The frozen decoder then produces a base identity image
+$\hat{x}^{id}=D(\hat{z}_q)$.  We use this image only as an identity source: its
+ridge map is extracted and passed to Stage 2, where sensor appearance and
+impression-level variation are introduced.
 
 \subsection{Ridge-Conditioned Instance Generation}
 
-Stage 2 receives a ridge image $r$ and target sensor rendering information.  The
-ridge map is encoded by a ControlNet-style branch initialized from the Stage-1
-UNet where compatible.  The denoising UNet predicts the diffusion noise using
-the noisy latent, timestep, and residual control features:
+Stage 2 turns the identity latent into sensor-specific impressions while
+keeping the ridge topology fixed.  This separation is important for
+fingerprints: unlike many recognition domains where global semantics can be
+slightly deformed, a small ridge break, ridge merge, or minutiae displacement
+can change the perceived identity.  We therefore use ridge-level correspondence
+as the main identity constraint.  The Stage-1 identity image is converted into
+a high-contrast ridge map $r$, and this map is treated as a structural control
+signal rather than as an auxiliary loss.
+
+This design follows the same motivation as IMPOSE's binary ridge control
+strategy~\cite{pan2026impose}: a binarized ridge image exposes the identity
+pattern directly and avoids asking a learned recognizer, descriptor, or
+minutiae matcher to infer identity consistency after generation.  In our
+setting, the ridge map anchors the topology of the synthetic finger, while
+sensor appearance, contrast, background texture, and local artifacts are left
+to the Stage-2 renderer and sensor adapter.
+
+The ridge map is encoded by a ControlNet-style branch initialized from the
+Stage-1 UNet where compatible.  The denoising UNet predicts the diffusion noise
+using the noisy latent, timestep, and residual control features:
 \[
     \epsilon_\phi(z_t,t,r) =
     U_\phi\left(z_t,t,C_\phi(z_t,t,r)\right).
