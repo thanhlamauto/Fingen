@@ -166,6 +166,27 @@ extractor produces a control map $r = R(\hat{x}^{id})$.  Stage 2 then samples
 impressions $\hat{x}^{imp}_1,\ldots,\hat{x}^{imp}_K$ conditioned on the ridge
 map and the selected target-sensor rendering parameters.
 
+\subsection{Fingerprint VQ-VAE Latent Space}
+
+We use a fingerprint-specific VQ-VAE front end following the motivation of
+IMPOSE~\cite{pan2026impose}, which performs rolled fingerprint identity
+generation in a latent diffusion space with discrete codebook representations.
+The important design choice for our setting is that the autoencoder is trained
+on fingerprint imagery rather than on natural images, so the latent space is
+biased toward preserving ridge flow, local ridge frequency, and minutiae-level
+structure.  After this autoencoder is trained, both its encoder and decoder are
+kept frozen: Stage 1 learns a prior over fingerprint latents, and Stage 2
+renders sensor-specific impressions in the same latent space.
+
+Our use of this VQ-VAE differs from IMPOSE in scope.  IMPOSE targets
+contactless fingerprint generation and combines latent identity generation with
+cross-modal translation and 3D pose simulation.  We only adopt the
+fingerprint-latent representation; sensor adaptation is handled by the
+ridge-conditioned Stage-2 renderer and LoRA adapters.  We keep the latent grid
+relatively high-resolution, $128 \times 128 \times 3$ for a $512 \times 512$
+image, because aggressive spatial compression removes ridge detail needed for
+later ridge extraction and recognition.
+
 \subsection{Unconditional Identity Generation}
 
 Stage 1 is an unconditional latent diffusion model trained on fingerprint
