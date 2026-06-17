@@ -254,31 +254,37 @@ image set, text prompt, or learned style descriptor.  This keeps the first
 stage focused on sampling new ridge identities instead of entangling identity
 with a particular sensor appearance.
 
-At inference time, we draw random latent noise
-$z_T \sim \mathcal{N}(0,\mathbf{I})$ and iteratively denoise it for $T$ reverse
-steps.  The resulting continuous estimate $\hat{z}_0$ is not decoded directly.
-Instead, we pass it through the same codebook nearest-neighbor projection used
-by the VQ-VAE:
+At inference time, we follow the IMPOSE-style notation shown in
+Figure~\ref{fig:stage1_identity_generation}.  We draw random latent noise
+$z_T \sim \mathcal{N}(0,\mathbf{I})$ and iteratively apply the U-Net denoiser
+for $T$ reverse steps; $z_{T-1}$ denotes an intermediate denoised latent in this
+reverse chain, and the ``$\times T$'' mark in the figure indicates this
+repeated denoising process.  The resulting continuous estimate $z_0$ is not
+decoded directly.  Instead, we pass it through the same codebook
+nearest-neighbor projection used by the VQ-VAE:
 \[
-    \hat{z}_q(i,j)=
-    e_{\arg\min_k \left\|\hat{z}_0(i,j)-e_k\right\|_2}.
+    z'_0(i,j)=
+    e_{\arg\min_k \left\|z_0(i,j)-e_k\right\|_2}.
 \]
 This final quantization step forces the generated latent back onto the learned
 fingerprint manifold and prevents the decoder from receiving arbitrary
-off-codebook features.  The frozen decoder then produces the base identity
-image $\hat{x}^{id}=D(\hat{z}_q)$.  This image is not treated as the final
-synthetic sample; it is the identity reference from which we extract the ridge
-condition for Stage 2.  Sensor style, pose variation, and local acquisition
-artifacts are introduced only in the second stage.
+off-codebook features.  We denote the frozen identity decoder as $D_I$, and it
+produces the generated rolled identity image $I_r=D_I(z'_0)$.  In the rest of
+this paper, this image is the same base identity image denoted
+$\hat{x}^{id}$.  It is not treated as the final synthetic sample; it is the
+identity reference from which we extract the ridge condition for Stage 2.
+Sensor style, pose variation, and local acquisition artifacts are introduced
+only in the second stage.
 
 \begin{figure}[!htbp]
     \centering
     \includegraphics[width=0.88\linewidth]{figures/stage1.png}
     \caption{Stage-1 fingerprint identity generation in the VQ-VAE latent
-    space.  A U-Net denoiser samples a latent identity from Gaussian noise,
-    projects the denoised representation back through the VQ codebook, and
-    decodes it with the frozen decoder to obtain the base identity image used
-    for ridge extraction.}
+    space, following the notation of IMPOSE~\cite{pan2026impose}.  A U-Net
+    denoiser maps Gaussian noise $z_T$ through $T$ reverse steps to a
+    continuous latent $z_0$; the VQ codebook projects it to $z'_0$, and the
+    frozen decoder $D_I$ produces the generated rolled identity image $I_r$
+    used for ridge extraction.}
     \label{fig:stage1_identity_generation}
 \end{figure}
 \FloatBarrier
