@@ -11,6 +11,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{array}
+\usepackage{placeins}
 \usepackage{xcolor}
 
 \definecolor{wacvblue}{rgb}{0.21,0.49,0.74}
@@ -220,7 +221,7 @@ intra-class variation while keeping minutiae topology mostly intact.
 \section{Experiments and Results}
 \label{sec:results}
 
-\subsection{Experimental Setting}
+\paragraph{Experimental setting.}
 
 NIST SD302A~\cite{nist302} is the main benchmark and the only dataset on which
 we compare with FPGAN-Control.  We split real data by finger identity after
@@ -236,19 +237,19 @@ TAR@FAR=$0.1\%$ on the held-out SD302A test split.  SD301A~\cite{nist301},
 SD302B, and FVC 2004~\cite{fvc2004} are used only for additional sensor
 coverage and cross-sensor transfer studies.
 
-\subsection{SD302A Comparison to FPGAN-Control}
+\paragraph{SD302A comparison.}
 
 Table~\ref{tab:sd302_tar01_backbones} reports the SD302A recognition-utility
 comparison using ResNet18, ResNet50, and ViT recognizer backbones.  Each
 synthetic dataset contains 20,000 training images.
 
-\begin{table*}[t]
+\begin{table}[!htbp]
     \centering
     \caption{SD302A recognition results under the Table 3 setting of Ridge
-    Scale Aligned Diffusion~\cite{hsu2026ridge}.  Each synthetic dataset
-    contains 2,000 identities with 10 impressions per identity.  Values are
-    TAR@FAR=$0.1\%$ on the SD302A test split, reported as fractions.}
+    Scale Aligned Diffusion~\cite{hsu2026ridge}.  Values are TAR@FAR=$0.1\%$
+    on the SD302A test split.}
     \label{tab:sd302_tar01_backbones}
+    \resizebox{\linewidth}{!}{%
     \begin{tabular}{lccc}
         \toprule
         & \multicolumn{3}{c}{TAR@FAR=$0.1\%$} \\
@@ -265,9 +266,10 @@ synthetic dataset contains 20,000 training images.
         NIST SD 302 + Ours & \textbf{0.8575} & 0.8938 & \textbf{0.9128} \\
         \bottomrule
     \end{tabular}
-\end{table*}
+    }
+\end{table}
 
-\subsection{Qualitative Multi-Sensor Generation}
+\paragraph{Qualitative multi-sensor generation.}
 
 Appendix Figures~\ref{fig:sensor_overview} and~\ref{fig:identity_spread}
 show the current SD302A multi-sensor synthetic dataset.  The generation run
@@ -276,7 +278,7 @@ are balanced across A--H.  Pose-mask alignment successfully used 32 unique pose
 masks for most sensors; sensor D currently has fewer usable pose masks in the
 inspected library and should be expanded before final generation.
 
-\subsection{Cross-Sensor Extension}
+\paragraph{Cross-sensor extension.}
 
 The additional datasets are used to test sensor coverage rather than to claim a
 direct FPGAN-Control comparison.  SD301A and SD302B increase the diversity of
@@ -287,13 +289,14 @@ images, then used to generate synthetic training identities for cross-sensor
 recognition on DB1\_B.  Table~\ref{tab:fvc_db1_transfer} follows the same
 recognizer-backbone format as the SD302A comparison.
 
-\begin{table*}[t]
+\begin{table}[!htbp]
     \centering
     \caption{FVC 2004 DB1 cross-sensor recognition results.  The Stage-2 UNet
     LoRA adapter is fine-tuned using the 80 DB1\_A images.  Recognizers are
     trained on DB1\_A real data, \method samples, or their combination, then
-    evaluated on DB1\_B.  Values are TAR@FAR=$0.1\%$, reported as fractions.}
+    evaluated on DB1\_B.  Values are TAR@FAR=$0.1\%$.}
     \label{tab:fvc_db1_transfer}
+    \resizebox{\linewidth}{!}{%
     \begin{tabular}{lccc}
         \toprule
         & \multicolumn{3}{c}{TAR@FAR=$0.1\%$} \\
@@ -310,7 +313,10 @@ recognizer-backbone format as the SD302A comparison.
         FVC 2004 DB1\_A + Ours &  &  &  \\
         \bottomrule
     \end{tabular}
-\end{table*}
+    }
+\end{table}
+
+\FloatBarrier
 
 \section{Ablation Study}
 \label{sec:ablation}
