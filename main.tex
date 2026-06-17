@@ -152,6 +152,38 @@ by tuning only Stage-2 UNet adapter weights.
 \section{Method}
 \label{sec:method}
 
+\subsection{Preliminaries: Latent Diffusion Models}
+
+Following DDPMs~\cite{ho2020ddpm} and latent diffusion
+models~\cite{rombach2022ldm}, we formulate generation as iterative denoising
+in a compressed fingerprint latent space.  Given an image latent $z_0$, the
+forward process adds Gaussian noise over $T$ timesteps:
+\[
+    q(z_t \mid z_0) =
+    \mathcal{N}\left(
+        \sqrt{\bar{\alpha}_t} z_0,
+        (1-\bar{\alpha}_t)\mathbf{I}
+    \right),
+\]
+or equivalently
+$z_t=\sqrt{\bar{\alpha}_t}z_0+\sqrt{1-\bar{\alpha}_t}\epsilon$ with
+$\epsilon \sim \mathcal{N}(0,\mathbf{I})$.  A denoising UNet is then trained to
+predict the sampled noise:
+\[
+    \mathcal{L}_{\text{ldm}} =
+    \mathbb{E}_{z_0,t,\epsilon}
+    \left[\left\|
+        \epsilon - \epsilon_\theta(z_t,t,c)
+    \right\|_1\right],
+\]
+where $c$ denotes an optional condition.  In our pipeline, $c=\varnothing$ for
+the Stage-1 identity prior and $c=r$ for the Stage-2 ridge-conditioned
+renderer.  At inference time, we start from Gaussian noise and use DDIM-style
+sampling~\cite{song2020ddim} to recover a clean latent in fewer reverse steps.
+This preliminary setup mirrors the latent-diffusion formulation used by
+IMPOSE~\cite{pan2026impose}, while our conditions and adapters are designed for
+cross-sensor contact fingerprint synthesis.
+
 \subsection{Overview}
 
 \method is a two-stage generator.  Stage 1 samples a synthetic fingerprint
@@ -196,7 +228,8 @@ coupling the sampled ridge identity to a particular acquisition style.  The
 generated image is used only as an identity source; its ridge map is extracted
 and passed to Stage 2 for sensor-specific rendering.
 
-The Stage-1 diffusion objective is standard noise prediction:
+Stage 1 instantiates the preliminary noise-prediction objective without a
+condition:
 \[
     \mathcal{L}_{\text{stage1}} =
     \mathbb{E}_{z,t,\epsilon}
