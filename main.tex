@@ -514,4 +514,64 @@ gap with stronger ridge/minutiae realism metrics.
     \bibliographystyle{iclr2026_conference}
 }
 
+\appendix
+
+\section{Classifier Training Details}
+\label{app:classifier_training}
+
+Table~\ref{tab:classifier_training_config} summarizes the recognizer training
+configuration used for the classifier experiments in
+Tables~\ref{tab:sd302_tar01_backbones} and~\ref{tab:fvc_transfer_resnet50}.
+Within each experiment, the classifier setting is kept fixed and only the
+training dataset changes between real, synthetic, and real-plus-synthetic
+rows.
+
+\begin{table}[!htbp]
+    \centering
+    \scriptsize
+    \caption{Classifier training configuration for the recognition experiments
+    reported in Tables~\ref{tab:sd302_tar01_backbones}
+    and~\ref{tab:fvc_transfer_resnet50}.}
+    \label{tab:classifier_training_config}
+    \setlength{\tabcolsep}{3.5pt}
+    \renewcommand{\arraystretch}{1.12}
+    \begin{tabular}{p{0.13\linewidth}p{0.13\linewidth}p{0.22\linewidth}p{0.24\linewidth}p{0.20\linewidth}}
+        \toprule
+        Report table & Classifier & Training data and labels & Optimization and objective & Augmentation and selection \\
+        \midrule
+        Table~\ref{tab:sd302_tar01_backbones}
+        & ResNet18, ResNet50, ViT
+        & SD302A real, synthetic, or real-plus-synthetic training sets.
+        Identities are NIST finger IDs after removing sensor and capture
+        suffixes.  Synthetic sets contain 2,000 identities with 10 impressions
+        per identity.
+        & Table follows the Ridge Scale Aligned Diffusion Table 3 recognition
+        protocol.  The local ResNet50 reproduction uses 224$\times$224
+        grayscale input, a 512-D embedding, CosFace with $s=64$ and $m=0.35$,
+        AdamW, gradient clipping at 5.0, learning rate $3{\times}10^{-4}$,
+        200 warmup steps, and weight decay $10^{-4}$.
+        & Batch size 128, evaluation batch size 256.  The SD302A
+        nist-finger runs use 80 epochs and select by TAR@FAR=$0.1\%$ on the
+        held-out real validation set.  Training augmentation uses probability
+        0.9, rotation $\pm6^\circ$, translation 0.04, zoom 0.96--1.05,
+        contrast jitter 0.15, and brightness jitter 0.04. \\
+        \midrule
+        Table~\ref{tab:fvc_transfer_resnet50}
+        & ResNet50
+        & For each FVC 2004 database DB\emph{x}, recognizers are trained on
+        DB\emph{x}\_A real images, \method samples generated from the
+        DB\emph{x}\_A adapter, or their union.  Labels are FVC subject IDs and
+        evaluation is on DB\emph{x}\_B.
+        & Same ResNet50 CosFace implementation as above: 224$\times$224
+        grayscale input, 512-D embedding, CosFace with $s=64$ and $m=0.35$,
+        AdamW with learning rate $3{\times}10^{-4}$, 200 warmup steps, weight
+        decay $10^{-4}$, and global-norm clipping at 5.0.
+        & Batch size 128, evaluation batch size 256, 200 epochs, two validation
+        impressions per class when available, and selection by validation
+        top-1 accuracy.  The same geometric and intensity augmentations as the
+        SD302A classifier are used. \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \end{document}
