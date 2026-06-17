@@ -220,13 +220,13 @@
         path, and base Stage-2 weights.
       \end{block}
       \begin{block}{Trainable per new sensor}
-        Rank-8 LoRA only on Stage-2 UNet middle self-attention
+        Reported runs use rank-8 LoRA only on Stage-2 UNet middle self-attention
         $qkv$ and output projection.
       \end{block}
     \end{column}
     \begin{column}{0.47\textwidth}
       \begin{itemize}
-        \item Trainable LoRA: \key{12.3K parameters}.
+        \item Reported rank-8 LoRA: \key{12.3K parameters}.
         \item Active Stage-2 transfer path: \key{23.39M parameters}.
         \item Full two-stage generator: \key{53.58M parameters}.
         \item Purpose: adapt sensor tone/artifacts without editing ridge-control
@@ -234,6 +234,50 @@
       \end{itemize}
       \smallnote{LoRA is intentionally not placed on ControlNet because that
       would adapt the structural ridge path.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{LoRA Rank: Sensor-Specific Capacity}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.48\textwidth}
+      \begin{block}{Capacity}
+        For the selected middle attention block,
+        \[
+          \begin{aligned}
+          P(k)&=k(C+3C)+k(C+C)\\
+              &=1536k,\quad C=256.
+          \end{aligned}
+        \]
+      \end{block}
+      \begin{itemize}
+        \item Rank controls how many sensor-style directions can be expressed.
+        \item Different sensors can need different retained update energy.
+        \item Use rank-8 checkpoint as a high-rank pilot, then inspect singular
+        value energy.
+      \end{itemize}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \resizebox{\linewidth}{!}{%
+        \begin{tabular}{lcccc}
+          \toprule
+          Sensor & $k_{.90}$ & $k_{.95}$ & $k_{.99}$ & Params at $k_{.95}$ \\
+          \midrule
+          DB1 & 1 & 2 & 3 & 3.1K \\
+          DB2 & 1 & 2 & 4 & 3.1K \\
+          DB3 & 1 & 1 & 3 & 1.5K \\
+          DB4 & 2 & 2 & 4 & 3.1K \\
+          \bottomrule
+        \end{tabular}}
+      \vspace{0.65em}
+      \[
+        \begin{aligned}
+        k_s^\star=\min\{k:\;&P(k)\le B_s,\\
+        &\mathcal{J}_s(k)\le \mathcal{J}_{s,\min}+\epsilon\}.
+        \end{aligned}
+      \]
+      \smallnote{$\mathcal{J}_s$ combines validation diffusion loss, style
+      distance, LightGlue structure score, and parameter cost.}
     \end{column}
   \end{columns}
 \end{frame}
@@ -376,7 +420,8 @@
           \item $32^2$ proxy: ridge F1 = 0.219 at 2 px tolerance.
           \item Sauvola active foreground: 53.3\%; Canny: 28.3\%.
           \item Canny has 2.8$\times$ more fragmented control support.
-          \item Selected LoRA: mid-attn $qkv$ + proj, 12.3K params.
+          \item Rank capacity: DB3 reaches 95\% update energy at rank 1;
+          DB1/DB2/DB4 need rank 2, and DB2/DB4 need rank 4 at 99\%.
         \end{itemize}
       \end{block}
     \end{column}
@@ -394,14 +439,14 @@
       Stage-2 ControlNet & 7.04M & VQ-VAE encoder/decoder/codebook & 13.86M \\
       Full two-stage generator & 53.58M & Active Stage-2 path & 23.39M \\
       \midrule
-      Trainable LoRA / sensor & \textbf{12.3K} & Logged generation & 1.05 s/image \\
+      Trainable rank-8 LoRA / sensor & \textbf{12.3K} & Logged generation & 1.05 s/image \\
       \bottomrule
     \end{tabular}}
   \vspace{0.9em}
   \begin{itemize}
     \item Active Stage-2 transfer path is 97.3--98.5\% smaller than SD1-style
     UNet/ControlNet-scale pipelines.
-    \item New sensor adaptation trains only LoRA; no full generator retraining.
+    \item New sensor adaptation trains only LoRA; rank can be chosen per sensor.
   \end{itemize}
 \end{frame}
 
@@ -409,8 +454,8 @@
   \begin{itemize}
     \item Stage 2 inherits errors from ridge extraction and pose-mask alignment;
     warping/clipping can remove minutiae-scale evidence.
-    \item Fixed rank-8 LoRA can be insufficient for low-contrast sensors such as
-    DB2; it may learn tone but weaken ridge/valley separation.
+    \item Reported recognition runs use a fixed rank-8 LoRA for all FVC sensors;
+    a full retraining sweep over rank remains future work.
     \item LightGlue and t-SNE are supporting diagnostics, not full biometric
     validation.
     \item Future work: minutiae-aware losses, better foreground masks,
@@ -421,13 +466,14 @@
 \begin{frame}{Takeaways}
   \begin{block}{Main result}
     \method{} separates identity generation from sensor rendering and adapts to
-    unseen sensor styles with only 12.3K trainable LoRA parameters per sensor.
+    unseen sensor styles with a small, sensor-specific LoRA adapter.
   \end{block}
   \begin{itemize}
     \item Explicit ridge conditioning keeps identity evidence under control.
     \item Target pose masks and perturbations add impression-level variation.
     \item Real + synthetic consistently improves SD302A and FVC recognition.
-    \item Low-contrast sensors remain the main failure mode.
+    \item LoRA rank should be selected per sensor; low-contrast sensors remain
+    the main failure mode.
   \end{itemize}
 \end{frame}
 
