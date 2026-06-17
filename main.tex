@@ -416,6 +416,17 @@ control perturbations: small rotations, translations, rare horizontal flips,
 ridge dropout, speckle, and light morphology.  These perturbations provide
 intra-class variation while keeping minutiae topology mostly intact.
 
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.92\linewidth]{figures/pose_mask_alignment_perturbation.png}
+    \caption{Pose-mask alignment and control perturbation.  A source ridge
+    condition is aligned to a target pose mask sampled from the per-sensor mask
+    library, clipped by the mask intersection, and then perturbed with mild
+    geometric jitter, ridge dropout, and speckle before Stage-2 rendering.}
+    \label{fig:pose_mask_alignment}
+\end{figure}
+\FloatBarrier
+
 \section{Experiments and Results}
 \label{sec:results}
 
