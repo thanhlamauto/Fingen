@@ -281,47 +281,31 @@ inspected library and should be expanded before final generation.
 The additional datasets are used to test sensor coverage rather than to claim a
 direct FPGAN-Control comparison.  SD301A and SD302B increase the diversity of
 contact and rolled sensors used for sensor-transfer studies.  FVC 2004 provides
-compact benchmarks with sensor styles that differ from SD302A.
-Figure~\ref{fig:fvc} shows an inspection sheet used to identify FVC sensors
-whose image statistics are close enough to SD302A-style sensors that Stage-2
-LoRA adaptation is likely to work.
-
-We also ran a preliminary FVC 2004 DB1 cross-sensor recognition test.  The
-Stage-2 UNet LoRA adapter was fitted on DB1\_A, then used to generate 500
-synthetic identities with 10 impressions per identity.  We trained the same
-CosFace ResNet50 recognizer on DB1\_A real data and/or these synthetic samples,
-and evaluated all verification pairs on DB1\_B: 80 images, 10 identities, 280
-genuine pairs, and 2,880 impostor pairs.  Table~\ref{tab:fvc_db1_transfer}
-shows that synthetic data improves the real-only recognizer under this
-cross-sensor protocol, although synthetic-only training still transfers poorly
-to real DB1\_B images.
+compact benchmarks with sensor styles that differ from SD302A.  For FVC 2004
+DB1, the Stage-2 UNet LoRA adapter is fitted from the 80 available DB1\_A
+images, then used to generate synthetic training identities for cross-sensor
+recognition on DB1\_B.  Table~\ref{tab:fvc_db1_transfer} follows the same
+recognizer-backbone format as the SD302A comparison.
 
 \begin{table*}[t]
     \centering
-    \caption{Preliminary FVC 2004 DB1 cross-sensor verification.  Recognizers
-    are trained on DB1\_A real data and/or \method samples generated with the
-    DB1\_A Stage-2 UNet LoRA adapter, then evaluated on all DB1\_B verification
-    pairs.  Values are percentages.}
+    \caption{FVC 2004 DB1 cross-sensor recognition results.  The Stage-2 UNet
+    LoRA adapter is fine-tuned using the 80 DB1\_A images.  Recognizers are
+    trained on DB1\_A real data, \method samples, or their combination, then
+    evaluated on DB1\_B.  Values are TAR@FAR=$0.1\%$, reported as fractions.}
     \label{tab:fvc_db1_transfer}
     \begin{tabular}{lccc}
         \toprule
-        Training set & EER $\downarrow$ & TAR@FAR1\% $\uparrow$ & TAR@FAR0.1\% $\uparrow$ \\
+        & \multicolumn{3}{c}{TAR@FAR=$0.1\%$} \\
+        \cmidrule(lr){2-4}
+        Training dataset & ResNet18 & ResNet50 & ViT \\
         \midrule
-        Real only & 28.17 & 6.07 & 1.43 \\
-        Synthetic only, 500$\times$10 & 43.57 & 6.43 & 0.36 \\
-        Real + synthetic, 500$\times$10 & 25.00 & 11.07 & 5.36 \\
+        FVC 2004 DB1\_A (real) &  &  &  \\
+        Ours &  &  &  \\
+        FVC 2004 DB1\_A + Ours &  &  &  \\
         \bottomrule
     \end{tabular}
 \end{table*}
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/fvc_vs_sd302a_sensor_comparison.png}
-    \caption{Qualitative sensor inspection between FVC and SD302A samples.  We
-    use these sheets to select plausible unseen sensors for Stage-2 UNet LoRA
-    adaptation.}
-    \label{fig:fvc}
-\end{figure}
 
 \section{Ablation Study}
 \label{sec:ablation}
