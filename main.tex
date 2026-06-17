@@ -310,9 +310,9 @@ ridge-level correspondence target for every target sensor rendering.
 Learned ridge extractors can fail on low-contrast or artifact-heavy regions and
 may hallucinate ridge evidence where the image is ambiguous.  To keep the
 control signal deterministic, we adopt Sauvola local adaptive
-binarization~\cite{sauvola2000adaptive}.  For a normalized grayscale
-fingerprint $I'(x,y)$, the local mean $m(x,y)$ and standard deviation $s(x,y)$
-are computed in a $w \times w$ neighborhood:
+binarization~\cite{sauvola2000adaptive}.  For a normalized, contrast-inverted
+grayscale fingerprint $I'(x,y)$, the local mean $m(x,y)$ and standard
+deviation $s(x,y)$ are computed in a $w \times w$ neighborhood:
 \begin{equation}
 \begin{aligned}
     m(x,y)
@@ -352,11 +352,22 @@ Given a foreground mask $\mathcal{M}$, the binary ridge-control image is
     \end{cases}
 \end{equation}
 We then apply morphological opening with a $2 \times 2$ structuring element to
-remove isolated noise.  Sauvola ridges are sometimes less smooth than the
-outputs of specialized ridge extractors, but the deterministic procedure stays
-faithful to the visible texture and avoids learned hallucination in sparse or
-damaged regions.  We use the resulting binary map as the ridge condition $r$
-for Stage 2.
+remove isolated noise.  Figure~\ref{fig:sd302a_sauvola_examples} shows real
+SD302A samples and the corresponding ridge maps extracted with these settings.
+Sauvola ridges are sometimes less smooth than the outputs of specialized ridge
+extractors, but the deterministic procedure stays faithful to the visible
+texture and avoids learned hallucination in sparse or damaged regions.  We use
+the resulting binary map as the ridge condition $r$ for Stage 2.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.88\linewidth]{figures/sd302a_sauvola_ridge_examples.png}
+    \caption{Real SD302A rolled fingerprints and Sauvola ridge maps extracted
+    with $w=11$, $R=128$, $k=0.007$, and a $2 \times 2$ morphological opening.
+    The examples are sampled from SD302A sensors A, B, D, and H on this VM.}
+    \label{fig:sd302a_sauvola_examples}
+\end{figure}
+\FloatBarrier
 
 \subsection{Ridge-Conditioned Instance Generation}
 
