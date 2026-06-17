@@ -283,31 +283,33 @@ inspected library and should be expanded before final generation.
 The additional datasets are used to test sensor coverage rather than to claim a
 direct FPGAN-Control comparison.  SD301A and SD302B increase the diversity of
 contact and rolled sensors used for sensor-transfer studies.  FVC 2004 provides
-compact benchmarks with sensor styles that differ from SD302A.  For FVC 2004
-DB1, the Stage-2 UNet LoRA adapter is fitted from the 80 available DB1\_A
+compact benchmarks with sensor styles that differ from SD302A.  We evaluate
+sensor transfer on the full FVC 2004 DB1--DB4 suite.  For each database, a
+Stage-2 UNet LoRA adapter is fitted from the 80 available DB\emph{x}\_A
 images, then used to generate synthetic training identities for cross-sensor
-recognition on DB1\_B.  Because this sensor-transfer setting depends on our
-LoRA adapter, Table~\ref{tab:fvc_db1_transfer} reports only the real baseline,
-\method samples, and their combination.
+recognition on DB\emph{x}\_B.  Because this sensor-transfer setting depends on
+our LoRA adapter, Table~\ref{tab:fvc_transfer_resnet50} reports only the real
+baseline, \method samples, and their combination using a ResNet50 recognizer.
 
 \begin{table}[!htbp]
     \centering
-    \caption{FVC 2004 DB1 cross-sensor recognition results.  The Stage-2 UNet
-    LoRA adapter is fine-tuned using the 80 DB1\_A images.  Recognizers are
-    trained on DB1\_A real data, \method samples, or their combination, then
-    evaluated on DB1\_B.  Values are TAR@FAR=$0.1\%$.}
-    \label{tab:fvc_db1_transfer}
+    \caption{FVC 2004 cross-sensor recognition results with ResNet50.  For
+    each database DB\emph{x}, the Stage-2 UNet LoRA adapter is fine-tuned using
+    the 80 DB\emph{x}\_A images.  Recognizers are trained on DB\emph{x}\_A real
+    data, \method samples, or their combination, then evaluated on
+    DB\emph{x}\_B.  Values are TAR@FAR=$0.1\%$.}
+    \label{tab:fvc_transfer_resnet50}
     \resizebox{\linewidth}{!}{%
-    \begin{tabular}{lccc}
+    \begin{tabular}{lcccc}
         \toprule
-        & \multicolumn{3}{c}{TAR@FAR=$0.1\%$} \\
-        \cmidrule(lr){2-4}
-        Training dataset & ResNet18 & ResNet50 & ViT \\
+        & \multicolumn{4}{c}{ResNet50 TAR@FAR=$0.1\%$} \\
+        \cmidrule(lr){2-5}
+        Training dataset & DB1 & DB2 & DB3 & DB4 \\
         \midrule
-        FVC 2004 DB1\_A (real) &  &  &  \\
-        Ours &  &  &  \\
+        FVC 2004 DB\emph{x}\_A (real) &  &  &  &  \\
+        Ours &  &  &  &  \\
         \midrule
-        FVC 2004 DB1\_A + Ours &  &  &  \\
+        FVC 2004 DB\emph{x}\_A + Ours &  &  &  &  \\
         \bottomrule
     \end{tabular}
     }
