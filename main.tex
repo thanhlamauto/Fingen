@@ -19,6 +19,13 @@
 \newcommand{\method}{RidgeLoRA-FP}
 \newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
 
+% Overleaf may keep auxiliary files from the previous WACV build.  Those files
+% can contain line-number commands that are not defined by the ICLR style.
+\makeatletter
+\providecommand{\@LN}[2]{}
+\providecommand{\@LN@col}[1]{}
+\makeatother
+
 \title{\method: Lightweight Ridge-Conditioned Fingerprint Diffusion for Affordable Cross-Sensor Synthetic Data}
 
 \author{Anonymous authors\\
