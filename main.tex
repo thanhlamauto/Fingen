@@ -495,7 +495,7 @@ observation that sensor style transfer is not uniform across SD302A sensors.
     \label{fig:sensor_quality_proxy}
 \end{figure*}
 
-\section{Efficiency and Positioning}
+\section{Efficiency}
 \label{sec:efficiency}
 
 \subsection{Lightweight Design}
@@ -513,7 +513,7 @@ has 23.39M parameters, which is 97.3\% smaller than the Stable Diffusion v1
 UNet alone and about 98.5\% smaller than an SD1.5+ControlNet-scale inference
 stack.  For a new sensor, only 12.3K LoRA parameters are trained.
 
-\begin{table}[t]
+\begin{table}[!t]
     \centering
     \caption{Parameter and throughput accounting for the current \method
     implementation.  Parameter counts are measured from local checkpoints.}
@@ -531,21 +531,6 @@ stack.  For a new sensor, only 12.3K LoRA parameters are trained.
         Trainable LoRA per new sensor & 12.3K \\
         \midrule
         Logged Stage-2 generation throughput & 1.05 s/image \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\begin{table}[t]
-    \centering
-    \caption{Positioning relative to closely related methods.}
-    \label{tab:positioning}
-    \begin{tabular}{p{0.22\linewidth}p{0.32\linewidth}p{0.34\linewidth}}
-        \toprule
-        Method & Strength & Limitation addressed by \method \\
-        \midrule
-        FPGAN-Control & Strong SD302A controllable baseline & We add lightweight diffusion, explicit ridge rendering, and LoRA sensor adapters. \\
-        GenPrint & Broad multimodal diffusion and zero-shot style control & We target smaller models and cheaper adaptation for labs with low-end GPUs. \\
-        \method & Compact latent diffusion with ridge control & Current recognizer-transfer gap remains the main open issue. \\
         \bottomrule
     \end{tabular}
 \end{table}
