@@ -236,20 +236,6 @@ fingerprint VQ-VAE, we freeze the encoder, codebook, and decoder.  Stage 1
 learns a diffusion prior over $z_q$, and Stage 2 reuses the same decoder-facing
 latent space to render sensor-specific impressions from ridge conditions.
 
-\begin{figure}[!htbp]
-    \centering
-    \includegraphics[width=0.88\linewidth]{figures/stage1.png}
-    \caption{Stage-1 fingerprint identity generation in the VQ-VAE latent
-    space.  A U-Net denoiser samples a latent identity from Gaussian noise,
-    projects the denoised representation back through the VQ codebook, and
-    decodes it with the frozen decoder to obtain the base identity image used
-    for ridge extraction.}
-    \label{fig:stage1_identity_generation}
-\end{figure}
-\FloatBarrier
-
-\subsection{Unconditional Identity Generation}
-
 The first diffusion stage establishes the synthetic identities used by the
 entire pipeline.  It is trained on the codebook-quantized fingerprint latents
 rather than on raw pixels.  Given a training image, we encode and quantize it
@@ -285,28 +271,100 @@ synthetic sample; it is the identity reference from which we extract the ridge
 condition for Stage 2.  Sensor style, pose variation, and local acquisition
 artifacts are introduced only in the second stage.
 
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.88\linewidth]{figures/stage1.png}
+    \caption{Stage-1 fingerprint identity generation in the VQ-VAE latent
+    space.  A U-Net denoiser samples a latent identity from Gaussian noise,
+    projects the denoised representation back through the VQ codebook, and
+    decodes it with the frozen decoder to obtain the base identity image used
+    for ridge extraction.}
+    \label{fig:stage1_identity_generation}
+\end{figure}
+\FloatBarrier
+
+\subsection{Identity-Consistent Control via Sauvola Binarization}
+
+The central challenge in cross-sensor fingerprint generation is to change
+sensor style while preserving identity.  Fingerprint recognition has little
+tolerance for ridge and minutiae deviations: a small ridge break, ridge merge,
+or displaced minutia can shift the perceived identity even when the global
+finger shape still looks plausible.
+
+We found that common identity-consistency signals are not reliable enough for
+this setting.  Fixed-length descriptor supervision, learned ridge-extractor
+losses, and minutiae-based rigid alignment can all be brittle when the source
+identity image and target-sensor samples differ in acquisition time, contact
+area, pressure distortion, and local sensor artifacts.  Instead, we use a
+direct control view: if the generated impression follows the same ridge-level
+pixel structure as the Stage-1 identity image, then identity preservation is
+enforced before any recognizer loss is needed.
+
+Following the binary-ridge control idea used by IMPOSE~\cite{pan2026impose},
+we use a high-contrast ridge map as the identity injection signal.  Binary
+ridge images are useful for two reasons.  First, their contrast exposes the
+identity-bearing ridge and valley pattern clearly.  Second, because the map is
+extracted from the Stage-1 identity image itself, it provides a natural
+ridge-level correspondence target for every target sensor rendering.
+
+Learned ridge extractors can fail on low-contrast or artifact-heavy regions and
+may hallucinate ridge evidence where the image is ambiguous.  To keep the
+control signal deterministic, we adopt Sauvola local adaptive
+binarization~\cite{sauvola2000adaptive}.  For a normalized grayscale
+fingerprint $I'(x,y)$, the local mean $m(x,y)$ and standard deviation $s(x,y)$
+are computed in a $w \times w$ neighborhood:
+\begin{equation}
+\begin{aligned}
+    m(x,y)
+    &= \frac{1}{w^2}
+    \sum_{i=x-\rho}^{x+\rho}
+    \sum_{j=y-\rho}^{y+\rho}
+    I'(i,j), \\
+    s(x,y)
+    &=
+    \sqrt{
+    \frac{1}{w^2}
+    \sum_{i=x-\rho}^{x+\rho}
+    \sum_{j=y-\rho}^{y+\rho}
+    \left[I'(i,j)-m(x,y)\right]^2
+    },
+\end{aligned}
+\end{equation}
+where $\rho=(w-1)/2$ and we set $w=11$ to match the typical ridge width in our
+$512 \times 512$ fingerprints.  The adaptive threshold is
+\begin{equation}
+    T(x,y)=m(x,y)
+    \left[
+        1+k\left(\frac{s(x,y)}{R}-1\right)
+    \right],
+\end{equation}
+with dynamic range constant $R=128$ and correction parameter $k=0.007$.  This
+threshold raises discrimination in textured ridge regions and suppresses
+background responses in low-variance regions.
+
+Given a foreground mask $\mathcal{M}$, the binary ridge-control image is
+\begin{equation}
+    B(x,y)=
+    \begin{cases}
+        0, & \text{if } (x,y)\in\mathcal{M}
+        \text{ and } I'(x,y)>T(x,y),\\
+        255, & \text{otherwise}.
+    \end{cases}
+\end{equation}
+We then apply morphological opening with a $2 \times 2$ structuring element to
+remove isolated noise.  Sauvola ridges are sometimes less smooth than the
+outputs of specialized ridge extractors, but the deterministic procedure stays
+faithful to the visible texture and avoids learned hallucination in sparse or
+damaged regions.  We use the resulting binary map as the ridge condition $r$
+for Stage 2.
+
 \subsection{Ridge-Conditioned Instance Generation}
 
-Stage 2 turns the identity latent into sensor-specific impressions while
-keeping the ridge topology fixed.  This separation is important for
-fingerprints: unlike many recognition domains where global semantics can be
-slightly deformed, a small ridge break, ridge merge, or minutiae displacement
-can change the perceived identity.  We therefore use ridge-level correspondence
-as the main identity constraint.  The Stage-1 identity image is converted into
-a high-contrast ridge map $r$, and this map is treated as a structural control
-signal rather than as an auxiliary loss.
-
-This design follows the same motivation as IMPOSE's binary ridge control
-strategy~\cite{pan2026impose}: a binarized ridge image exposes the identity
-pattern directly and avoids asking a learned recognizer, descriptor, or
-minutiae matcher to infer identity consistency after generation.  In our
-setting, the ridge map anchors the topology of the synthetic finger, while
-sensor appearance, contrast, background texture, and local artifacts are left
-to the Stage-2 renderer and sensor adapter.
-
-The ridge map is encoded by a ControlNet-style branch initialized from the
-Stage-1 UNet where compatible.  The denoising UNet predicts the diffusion noise
-using the noisy latent, timestep, and residual control features:
+Stage 2 receives the Sauvola ridge image $r$ and target sensor rendering
+information.  The ridge map is encoded by a ControlNet-style branch initialized
+from the Stage-1 UNet where compatible.  The denoising UNet predicts the
+diffusion noise using the noisy latent, timestep, and residual control
+features:
 \[
     \epsilon_\phi(z_t,t,r) =
     U_\phi\left(z_t,t,C_\phi(z_t,t,r)\right).
