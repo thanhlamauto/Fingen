@@ -236,6 +236,18 @@ fingerprint VQ-VAE, we freeze the encoder, codebook, and decoder.  Stage 1
 learns a diffusion prior over $z_q$, and Stage 2 reuses the same decoder-facing
 latent space to render sensor-specific impressions from ridge conditions.
 
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.88\linewidth]{figures/stage1.png}
+    \caption{Stage-1 fingerprint identity generation in the VQ-VAE latent
+    space.  A U-Net denoiser samples a latent identity from Gaussian noise,
+    projects the denoised representation back through the VQ codebook, and
+    decodes it with the frozen decoder to obtain the base identity image used
+    for ridge extraction.}
+    \label{fig:stage1_identity_generation}
+\end{figure}
+\FloatBarrier
+
 \subsection{Unconditional Identity Generation}
 
 The first diffusion stage establishes the synthetic identities used by the
