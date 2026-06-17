@@ -80,8 +80,13 @@ under different acquisition devices.
 Recent fingerprint generators address this gap by synthesizing multiple
 impressions of each synthetic finger.  FPGAN-Control~\cite{shoshan2023fpgan}
 is the closest baseline for our setting because it is trained and evaluated on
-NIST SD302/N2N and explicitly controls fingerprint appearance.  GenPrint
-\cite{grosz2024genprint} and Ridge Scale Aligned
+NIST SD302/N2N and explicitly controls fingerprint appearance.  Its practical
+adaptation path is less direct, however: a newly introduced sensor generally
+requires retraining the full generator rather than attaching a small
+sensor-specific adapter.  The released setting is also tightly coupled to the
+SD302/N2N data organization and sensor taxonomy, which makes the framework
+harder to port when the target dataset has different acquisition protocols or
+sensor styles.  GenPrint~\cite{grosz2024genprint} and Ridge Scale Aligned
 Diffusion~\cite{hsu2026ridge} extend the direction with Stable-Diffusion-based
 pipelines, ControlNet-style structure guidance, and image/text style
 conditions.  These designs are powerful, but the inherited backbone is large:
