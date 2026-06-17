@@ -335,31 +335,12 @@ the ResNet18, ResNet50, and ViT recognizer backbones.
 
 \subsection{Qualitative Multi-Sensor Generation}
 
-Figure~\ref{fig:sensor_overview} shows the current SD302A multi-sensor
-synthetic dataset.  The generation run produced 5,000 images: 500 identities
-with 10 impressions each.  Sensor counts are balanced across A--H.  Pose-mask
-alignment successfully used 32 unique pose masks for most sensors; sensor D
-currently has fewer usable pose masks in the inspected library and should be
-expanded before final generation.
-
-\begin{figure*}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/qc_sensor_overview.png}
-    \caption{QC sheet for the current SD302A synthetic dataset.  The dataset
-    contains 500 synthetic identities and 10 impressions per identity,
-    distributed across SD302A sensors A--H.}
-    \label{fig:sensor_overview}
-\end{figure*}
-
-\begin{figure*}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/qc_identity_spread_first6.png}
-    \caption{Examples of multiple impressions generated from the same
-    synthetic identity under different sensor conditions.  Pose-mask alignment
-    reduces the single-pose failure mode observed when the raw identity ridge is
-    used directly as the control image.}
-    \label{fig:identity_spread}
-\end{figure*}
+Appendix Figures~\ref{fig:sensor_overview} and~\ref{fig:identity_spread}
+show the current SD302A multi-sensor synthetic dataset.  The generation run
+produced 5,000 images: 500 identities with 10 impressions each.  Sensor counts
+are balanced across A--H.  Pose-mask alignment successfully used 32 unique pose
+masks for most sensors; sensor D currently has fewer usable pose masks in the
+inspected library and should be expanded before final generation.
 
 \subsection{Cross-Sensor Extension}
 
@@ -593,6 +574,33 @@ SD301A, SD302B, and FVC-style sensors define the cross-sensor extension.  The
 remaining work is to finalize the FPGAN-Control comparison, benchmark low-end GPU
 sampling and LoRA fine-tuning cost, and close the observed recognizer-transfer
 gap with stronger ridge/minutiae realism metrics.
+
+\clearpage
+\appendix
+
+\section{Additional Qualitative Results}
+\label{app:qualitative}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/qc_sensor_overview.png}
+    \caption{QC sheet for the current SD302A synthetic dataset.  The dataset
+    contains 500 synthetic identities and 10 impressions per identity,
+    distributed across SD302A sensors A--H.}
+    \label{fig:sensor_overview}
+\end{figure*}
+
+\begin{figure*}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/qc_identity_spread_first6.png}
+    \caption{Examples of multiple impressions generated from the same
+    synthetic identity under different sensor conditions.  Pose-mask alignment
+    reduces the single-pose failure mode observed when the raw identity ridge is
+    used directly as the control image.}
+    \label{fig:identity_spread}
+\end{figure*}
+
+\clearpage
 
 {
     \small
