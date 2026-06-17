@@ -20,6 +20,11 @@
 \setlength{\floatsep}{6pt plus 2pt minus 2pt}
 \setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
 \setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\makeatletter
+\setlength{\@fptop}{0pt}
+\setlength{\@fpsep}{8pt plus 2pt minus 2pt}
+\setlength{\@fpbot}{0pt plus 1fil}
+\makeatother
 \renewcommand{\topfraction}{0.95}
 \renewcommand{\bottomfraction}{0.85}
 \renewcommand{\textfraction}{0.05}
@@ -810,8 +815,9 @@ The adapter location is important because sensor transfer should change
 appearance without weakening the ridge-control path.  We therefore place LoRA
 on the Stage-2 denoising UNet rather than on the ControlNet branch.  Within
 the current compact UNet, the only active self-attention module is the
-bottleneck middle block, so the reported experiments use rank-8 LoRA on the
-middle self-attention $qkv$ projection and output projection.  This gives a
+bottleneck middle block, so the reported experiments fix rank-8 LoRA on the
+middle self-attention $qkv$ projection and output projection due to time and
+compute-resource constraints.  This gives a
 global, low-dimensional appearance handle while keeping the VQ-VAE, Stage-1
 identity prior, ControlNet, and base Stage-2 weights frozen.
 
@@ -858,68 +864,40 @@ samples rather than learning a reusable style shift.
 \subsection{Stage-2 LoRA Rank Capacity}
 \label{subsec:lora_rank_capacity}
 
-Placement alone does not determine the adapter capacity.  Even with the same
+Placement alone does not determine the adapter capacity.  Even at the same
 middle-attention location, the LoRA rank $k$ controls how many independent
-sensor-style directions the adapter can express.  Because each FVC sensor has a
-different foreground footprint, ridge/valley contrast, and artifact pattern, a
-single global rank is unlikely to be optimal.  The reported experiments use
-rank 8 as a conservative fixed setting, but a deployable system should choose a
-sensor-dependent rank.
+sensor-style directions the adapter can learn.  Sensors with clean contrast may
+need only a small rank, while sensors with stronger blur, pressure variation, or
+background artifacts can need a larger one.  The reported experiments fix rank 8
+for all FVC sensors because of time and compute-resource constraints; this should
+not be interpreted as claiming that rank 8 is optimal.  The natural deployment
+rule is to choose the smallest rank that performs almost as well as the best rank
+for that sensor.
 
-For the selected Stage-2 middle-attention adapter with channel width
-$C=256$, the trainable parameter count is
+For the selected Stage-2 middle-attention adapter, the cost grows linearly:
 \begin{equation}
-    P(k)
-    =
-    k(C+3C) + k(C+C)
-    =
-    1536k,
+    P(k) = 1536k.
 \end{equation}
-so rank 8 corresponds to 12.3K trainable parameters.  To estimate the rank
-actually used by each trained adapter, we treat the rank-8 checkpoint as a
-high-rank pilot.  For sensor $s$ and module
-$m\in\{\mathrm{qkv},\mathrm{proj}\}$, let
-\begin{equation}
-    \Delta W^{(K)}_{s,m}
-    =
-    \frac{\alpha}{K} A_{s,m}B_{s,m},
-    \qquad K=8,\quad \alpha=8,
-\end{equation}
-be the dense LoRA update recovered from the checkpoint, and let
-$\sigma_{s,m,i}$ be its singular values.  The spectral retention of a shared
-rank $k$ is
-\begin{equation}
-    E_s(k)
-    =
-    \frac{
-        \sum_m \sum_{i=1}^{k}\sigma_{s,m,i}^{2}
-    }{
-        \sum_m \sum_{i=1}^{K}\sigma_{s,m,i}^{2}
-    }.
-    \label{eq:lora_rank_energy}
-\end{equation}
-This gives a sensor-specific lower bound
-\begin{equation}
-    k^{\mathrm{spec}}_{s,\tau}
-    =
-    \min \{k : E_s(k)\ge \tau\},
-\end{equation}
-where $\tau$ is the desired retained-update energy.
+Rank 1, 2, 4, and 8 therefore use 1.5K, 3.1K, 6.1K, and 12.3K trainable
+parameters, respectively.  As a quick diagnostic, we also compress the available
+rank-8 checkpoints after training and ask how many directions explain most of the
+LoRA update.  This post-hoc check does not choose the final rank by itself and
+does not assume that rank 8 is best; it only tells us which smaller ranks are
+worth retraining.
 Table~\ref{tab:lora_rank_capacity_ablation} shows that the trained adapters do
-not use the rank-8 budget uniformly.  At $\tau=0.95$, DB3 needs only one
-dominant direction, while DB1, DB2, and DB4 need two; at the stricter
-$\tau=0.99$ threshold, DB2 and DB4 require four directions.  This supports a
-sensor-dependent rank policy instead of always using the same LoRA rank.
+not use their available rank-8 capacity uniformly.  At the 95\% update-energy
+level, DB3 needs only one dominant direction, while DB1, DB2, and DB4 need two.
+At 99\%, DB2 and DB4 need four directions.  This supports a sensor-dependent
+rank policy instead of always using the same LoRA rank.
 
 \begin{table}[!htbp]
     \centering
     \footnotesize
-    \caption{LoRA rank-capacity analysis from the trained rank-8 FVC adapters.
-    $k_\tau$ is the smallest shared rank whose recovered LoRA update preserves
-    at least $\tau$ of the combined squared singular-value energy across
-    Stage-2 middle-attention $qkv$ and output-projection modules.  This is a
-    post-hoc capacity diagnostic, not a substitute for a full retraining sweep.
-    Config: Appendix Table~\ref{tab:appendix_generator_hparams}.}
+    \caption{LoRA rank-capacity diagnostic from the available trained rank-8 FVC adapters.
+    $k_\tau$ is the smallest compressed rank that preserves at least $\tau$ of
+    the recovered Stage-2 middle-attention LoRA update energy.  The diagnostic is
+    used to narrow the retraining sweep, not to claim that rank 8 is optimal or
+    to replace direct retraining.  Config: Appendix Table~\ref{tab:appendix_generator_hparams}.}
     \label{tab:lora_rank_capacity_ablation}
     \setlength{\tabcolsep}{4pt}
     \renewcommand{\arraystretch}{0.95}
@@ -935,43 +913,21 @@ sensor-dependent rank policy instead of always using the same LoRA rank.
     \end{tabular}
 \end{table}
 
-The practical rank-selection rule should combine this spectral estimate with a
-held-out target-sensor validation objective.  For a candidate rank set
-$\mathcal{K}$ and budget $B_s$, we choose
+The practical selection rule is deliberately simple.  For each target sensor we
+train a small set of candidate ranks, generate the same number of synthetic
+prints for each candidate, train the same classifier, and evaluate it on the
+real DB\emph{x}\_B split.  We then choose
 \begin{equation}
-    k_s^\star
-    =
-    \min
-    \left\{
-        k\in\mathcal{K} :
-        P(k)\le B_s,\;
-        \mathcal{J}_s(k)
-        \le
-        \min_{k'\in\mathcal{K}}\mathcal{J}_s(k')+\epsilon
-    \right\},
+    k_s = \text{smallest rank with }
+    \mathrm{TAR}_s(k) \ge \mathrm{TAR}_{s,\mathrm{best}} - \epsilon .
     \label{eq:lora_rank_selection}
 \end{equation}
-where
-\begin{equation}
-    \mathcal{J}_s(k)
-    =
-    \mathcal{L}^{\mathrm{val}}_{\mathrm{diff},s}(k)
-    + \lambda_{\mathrm{style}} D_{\mathrm{style},s}(k)
-    + \lambda_{\mathrm{struct}}
-      \left[1-\widetilde{M}_{\mathrm{LG},s}(k)\right]
-    + \lambda_P \frac{P(k)}{P(K)}.
-\end{equation}
-Here $\mathcal{L}^{\mathrm{val}}_{\mathrm{diff}}$ is the held-out Stage-2
-noise-prediction loss on target-sensor images, $D_{\mathrm{style}}$ is a
-distance between generated and real target-sensor style descriptors,
-$\widetilde{M}_{\mathrm{LG}}$ is a normalized paired LightGlue structure score,
-and the final term penalizes adapter size.  In practice, the pilot spectrum in
-Table~\ref{tab:lora_rank_capacity_ablation} narrows the sweep to a small set
-around $k^{\mathrm{spec}}_{s,\tau}$, while
-Equation~\ref{eq:lora_rank_selection} prevents choosing a rank that preserves
-the update spectrum but harms validation structure or overfits the 80-image
-target set.
-\FloatBarrier
+Here $\epsilon$ is a small tolerance, e.g. one TAR point.  If two ranks are
+effectively tied, the smaller rank is selected.  A rank is rejected before this
+step if its generated images fail the ridge/pose quality checks or show a clear
+LightGlue structure drop.  In practice, Table~\ref{tab:lora_rank_capacity_ablation}
+suggests testing ranks such as $\{1,2,4,8\}$ and letting the DB\emph{x}\_B
+recognition result decide the final sensor-specific rank.
 
 \section{Efficiency}
 \label{sec:efficiency}
@@ -991,7 +947,7 @@ has 23.39M parameters, which is 97.3\% smaller than the Stable Diffusion v1
 UNet alone and about 98.5\% smaller than an SD1.5+ControlNet-scale inference
 stack.  For a new sensor, only 12.3K LoRA parameters are trained.
 This 12.3K figure corresponds to the rank-8 adapters used in the reported
-experiments; the rank-selection rule in
+experiments because of time and compute-resource constraints; the rank-selection rule in
 Section~\ref{subsec:lora_rank_capacity} can choose smaller or larger ranks under a
 sensor-specific budget.
 
@@ -1016,7 +972,7 @@ sensor-specific budget.
         Full two-stage generator & 53.58M &
         Active Stage-2 transfer path & 23.39M \\
         \midrule
-        Trainable rank-8 LoRA per new sensor & 12.3K &
+        Fixed rank-8 LoRA per new sensor & 12.3K &
         Logged Stage-2 generation throughput & 1.05 s/image \\
         \bottomrule
     \end{tabular}
@@ -1038,10 +994,10 @@ Second, the LoRA adapters are intentionally small: each target sensor trains
 only the Stage-2 middle-attention $qkv$ and output-projection adapters.  The
 rank-capacity analysis shows that different sensors use different effective
 adapter dimensions, but our recognition experiments still use a fixed rank-8
-setting for all FVC databases.  A complete rank sweep with retraining at
-multiple $k$ values is therefore still needed.  The DB2 results indicate that
-low-contrast sensors may also need better quality-aware losses, not only more
-or fewer LoRA parameters.
+setting for all FVC databases due to time and compute-resource constraints.  A
+complete rank sweep with retraining at multiple $k$ values is therefore still
+needed.  The DB2 results indicate that low-contrast sensors may also need better
+quality-aware losses, not only more or fewer LoRA parameters.
 
 Finally, our additional diagnostics should be read as supporting evidence rather
 than full biometric validation.  LightGlue measures paired structural agreement
@@ -1180,8 +1136,9 @@ fine-tuned.
         & 2 residual blocks per stage, 8 heads, scale-shift normalization
         & Same denoising U-Net; ControlNet initialized from compatible U-Net
         weights
-        & Same; reported runs use LoRA rank 8, alpha 8, init scale 0.01;
-        sensor-dependent rank selection is defined in
+        & Same; reported runs fix LoRA rank 8, alpha 8, init scale 0.01
+        due to time and compute-resource constraints; sensor-dependent rank
+        selection is defined in
         Section~\ref{subsec:lora_rank_capacity} \\
         Diffusion objective
         & $\epsilon$ prediction with L1 loss
@@ -1407,9 +1364,10 @@ impressions each for the corresponding DB\emph{x} experiment.
         & Same latent U-Net family with a one-channel ridge ControlNet branch
         initialized from compatible U-Net weights \\
         Stage-2 sensor LoRA
-        & Reported runs use rank-8 low-rank adapters in Stage-2 UNet middle
-        self-attention $qkv$ and output projections; 12.3K trainable parameters
-        per target sensor, with optional sensor-dependent rank selection \\
+        & Reported runs fix rank-8 low-rank adapters in Stage-2 UNet middle
+        self-attention $qkv$ and output projections due to time and
+        compute-resource constraints; 12.3K trainable parameters per target
+        sensor, with optional sensor-dependent rank selection \\
         VQ-VAE
         & Fingerprint autoencoder with $128\times128\times3$ latent grid,
         4,096 codebook entries, and frozen encoder/decoder/codebook \\

@@ -220,13 +220,13 @@
         path, and base Stage-2 weights.
       \end{block}
       \begin{block}{Trainable per new sensor}
-        Reported runs use rank-8 LoRA only on Stage-2 UNet middle self-attention
-        $qkv$ and output projection.
+        Reported runs fix rank-8 LoRA on Stage-2 UNet middle self-attention
+        $qkv$ and output projection due to time/resource constraints.
       \end{block}
     \end{column}
     \begin{column}{0.47\textwidth}
       \begin{itemize}
-        \item Reported rank-8 LoRA: \key{12.3K parameters}.
+        \item Fixed rank-8 setting: \key{12.3K parameters}.
         \item Active Stage-2 transfer path: \key{23.39M parameters}.
         \item Full two-stage generator: \key{53.58M parameters}.
         \item Purpose: adapt sensor tone/artifacts without editing ridge-control
@@ -244,17 +244,14 @@
       \begin{block}{Capacity}
         For the selected middle attention block,
         \[
-          \begin{aligned}
-          P(k)&=k(C+3C)+k(C+C)\\
-              &=1536k,\quad C=256.
-          \end{aligned}
+          P(k)=1536k
         \]
       \end{block}
       \begin{itemize}
-        \item Rank controls how many sensor-style directions can be expressed.
-        \item Different sensors can need different retained update energy.
-        \item Use rank-8 checkpoint as a high-rank pilot, then inspect singular
-        value energy.
+        \item Rank controls how many sensor-style directions can be learned.
+        \item Rank 1/2/4/8 means 1.5K/3.1K/6.1K/12.3K trainable parameters.
+        \item Available rank-8 checkpoints give a preliminary capacity hint.
+        \item Final choice comes from retraining and DB\emph{x}\_B recognition.
       \end{itemize}
     \end{column}
     \begin{column}{0.49\textwidth}
@@ -271,13 +268,13 @@
         \end{tabular}}
       \vspace{0.65em}
       \[
-        \begin{aligned}
-        k_s^\star=\min\{k:\;&P(k)\le B_s,\\
-        &\mathcal{J}_s(k)\le \mathcal{J}_{s,\min}+\epsilon\}.
-        \end{aligned}
+        \begin{gathered}
+        k_s=\text{smallest }k\\[-0.2em]
+        \mathrm{TAR}_s(k)\ge \mathrm{TAR}_{s,\mathrm{best}}-\epsilon
+        \end{gathered}
       \]
-      \smallnote{$\mathcal{J}_s$ combines validation diffusion loss, style
-      distance, LightGlue structure score, and parameter cost.}
+      \smallnote{If ranks tie, choose the smaller one. Reject a rank first if
+      ridge/pose QC or LightGlue structure clearly degrades.}
     \end{column}
   \end{columns}
 \end{frame}
@@ -439,7 +436,7 @@
       Stage-2 ControlNet & 7.04M & VQ-VAE encoder/decoder/codebook & 13.86M \\
       Full two-stage generator & 53.58M & Active Stage-2 path & 23.39M \\
       \midrule
-      Trainable rank-8 LoRA / sensor & \textbf{12.3K} & Logged generation & 1.05 s/image \\
+      Fixed rank-8 LoRA / sensor & \textbf{12.3K} & Logged generation & 1.05 s/image \\
       \bottomrule
     \end{tabular}}
   \vspace{0.9em}
@@ -454,8 +451,8 @@
   \begin{itemize}
     \item Stage 2 inherits errors from ridge extraction and pose-mask alignment;
     warping/clipping can remove minutiae-scale evidence.
-    \item Reported recognition runs use a fixed rank-8 LoRA for all FVC sensors;
-    a full retraining sweep over rank remains future work.
+    \item Reported recognition runs fix rank-8 LoRA for all FVC sensors due to
+    time/resource constraints; a retraining sweep is needed to choose ranks.
     \item LightGlue and t-SNE are supporting diagnostics, not full biometric
     validation.
     \item Future work: minutiae-aware losses, better foreground masks,
