@@ -63,18 +63,35 @@ utility.
 \section{Introduction}
 \label{sec:introduction}
 
-Fingerprint recognition research is constrained by the scarcity of public,
-large-scale, multi-impression datasets.  Unlike generic image classification,
-the training data must represent both identity-level structure, such as ridge
-flow and minutiae configuration, and acquisition-level variation, such as
-sensor noise, contrast, pressure, cropping, pose, and background artifacts.
-Collecting such data is expensive and privacy-sensitive, and the resulting
-datasets are often too small for training robust deep recognizers.
-This bottleneck is most visible when a new sensor is introduced.  The sensor
-may have a different contrast curve, foreground mask, scratch pattern, or
-cropping distribution, but collecting enough repeated impressions from real
-users to retrain a classifier is often impractical at the beginning of
-deployment.
+Fingerprint recognition research is constrained by a specific data problem:
+useful training sets need both many identities and repeated impressions of each
+identity, but biometric data is expensive to collect, difficult to share, and
+privacy-sensitive.  Each image contains two kinds of information that must be
+modeled separately.  The ridge flow, ridge frequency, and minutiae layout define
+the finger identity; sensor contrast, background texture, pressure, crop, pose,
+and local artifacts define the acquisition domain.  A recognizer needs both
+axes of variation, but public datasets rarely provide them at scale.
+
+We study the target-sensor augmentation setting.  A lab may have a small
+calibration set from a newly deployed sensor, but not enough users or repeated
+impressions to retrain a robust classifier.  The goal is to synthesize extra
+training impressions that (i) cover many virtual finger identities, (ii) match
+the target sensor's foreground mask, tone, contrast, and artifact statistics,
+and (iii) preserve identity-defining ridge/minutiae structure across multiple
+impressions of the same virtual finger.  This is harder than generic image
+generation: a visually plausible fingerprint is not necessarily useful if ridge
+breaks, ridge merges, or displaced minutiae change the identity evidence seen by
+a matcher.
+
+This target-sensor problem also differs from ordinary data augmentation.  Simple
+geometric or photometric transforms can perturb an existing real impression, but
+they cannot create new identities or reproduce the full distribution shift
+introduced by a different acquisition device.  Conversely, a generator trained
+for one sensor can produce many samples, but those samples may not transfer when
+the deployment sensor has a different pose footprint, ridge/valley contrast, or
+background pattern.  The practical requirement is therefore a generator that can
+separate identity from sensor rendering and adapt the rendering component from a
+small target-sensor set.
 
 The same pressure has already made synthetic data an important direction in
 face recognition, where rendered and diffusion-generated identities are used to
@@ -121,6 +138,9 @@ Our contributions are:
     \item A Stage-2 UNet LoRA adaptation framework for transferring the
     generator to new sensors while keeping the identity prior and ridge-control
     path frozen.
+    \item Recognition, matching, and style-clustering diagnostics on SD302A and
+    FVC 2004 showing when synthetic data helps and where low-contrast sensors
+    remain challenging.
 \end{itemize}
 
 \section{Related Work}
@@ -1223,11 +1243,12 @@ over target sensors.  For FVC 2004, each DB\emph{x} uses a separate LoRA
 adapter trained from DB\emph{x}\_A, then renders 500 identities with 10
 impressions each for the corresponding DB\emph{x} experiment.
 
-\begin{table}[!htbp]
-    \centering
+\begin{center}
+    \refstepcounter{table}
+    {\small Table~\thetable: Architecture summary of the models used in this
+    report.\label{tab:appendix_architecture_summary}\par}
+    \vspace{0.5ex}
     \small
-    \caption{Architecture summary of the models used in this report.}
-    \label{tab:appendix_architecture_summary}
     \setlength{\tabcolsep}{6pt}
     \renewcommand{\arraystretch}{1.05}
     \begin{tabular}{p{0.27\linewidth}|p{0.63\linewidth}}
@@ -1258,7 +1279,44 @@ impressions each for the corresponding DB\emph{x} experiment.
         fingerprint embedding head \\
         \bottomrule
     \end{tabular}
-\end{table}
+\end{center}
 \FloatBarrier
+
+\clearpage
+\begin{figure}[p]
+    \centering
+    \makebox[\linewidth][c]{\includegraphics[width=1.04\linewidth,height=0.95\textheight,keepaspectratio]{figures/fvc_lora_db1_real_synth_page.png}}
+    \caption{FVC 2004 DB1 comparison: 32 DB1-LoRA synthetic impressions
+    (top) and 32 real DB1\_A impressions (bottom).}
+    \label{fig:appendix_fvc_db1_lora_real_synth}
+\end{figure}
+\clearpage
+
+\begin{figure}[p]
+    \centering
+    \makebox[\linewidth][c]{\includegraphics[width=1.04\linewidth,height=0.95\textheight,keepaspectratio]{figures/fvc_lora_db2_real_synth_page.png}}
+    \caption{FVC 2004 DB2 comparison: 32 DB2-LoRA synthetic impressions
+    (top) and 32 real DB2\_A impressions (bottom).}
+    \label{fig:appendix_fvc_db2_lora_real_synth}
+\end{figure}
+\clearpage
+
+\begin{figure}[p]
+    \centering
+    \makebox[\linewidth][c]{\includegraphics[width=1.04\linewidth,height=0.95\textheight,keepaspectratio]{figures/fvc_lora_db3_real_synth_page.png}}
+    \caption{FVC 2004 DB3 comparison: 32 DB3-LoRA synthetic impressions
+    (top) and 32 real DB3\_A impressions (bottom).}
+    \label{fig:appendix_fvc_db3_lora_real_synth}
+\end{figure}
+\clearpage
+
+\begin{figure}[p]
+    \centering
+    \makebox[\linewidth][c]{\includegraphics[width=1.04\linewidth,height=0.95\textheight,keepaspectratio]{figures/fvc_lora_db4_real_synth_page.png}}
+    \caption{FVC 2004 DB4 comparison: 32 DB4-LoRA synthetic impressions
+    (top) and 32 real DB4\_A impressions (bottom).}
+    \label{fig:appendix_fvc_db4_lora_real_synth}
+\end{figure}
+\clearpage
 
 \end{document}
