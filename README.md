@@ -1,14 +1,14 @@
-# WACV 2027 Fingerprint Synthesis Report Draft
+# ICLR 2026 Fingerprint Synthesis Report Draft
 
-This directory contains a WACV 2027-style report draft for the current
+This directory contains an ICLR 2026-style report draft for the current
 fingerprint synthesis project.
 
 Main files:
 
 - `main.tex`: paper draft.
 - `main.bib`: references.
-- `wacv.sty`, `ieeenat_fullname.bst`: copied from
-  `/home/nguyenthanhlam/wacv-2027-author-kit-template`.
+- `iclr2026_conference.sty`, `iclr2026_conference.bst`,
+  `math_commands.tex`: copied from the ICLR 2026 template archive.
 - `figures/`: QC sheets copied from the current generation outputs.
 
 Build command, once a TeX distribution is available:
