@@ -270,12 +270,25 @@ synthetic dataset contains 20,000 training images.
 
 \paragraph{Qualitative multi-sensor generation.}
 
-Appendix Figures~\ref{fig:sensor_overview} and~\ref{fig:identity_spread}
-show the current SD302A multi-sensor synthetic dataset.  The generation run
-produced 5,000 images: 500 identities with 10 impressions each.  Sensor counts
+Figure~\ref{fig:sensor_overview} summarizes the current SD302A multi-sensor
+synthesis run.  The generation run produced 5,000 images: 500 identities with
+10 impressions each.  Sensor counts
 are balanced across A--H.  Pose-mask alignment successfully used 32 unique pose
 masks for most sensors; sensor D currently has fewer usable pose masks in the
 inspected library and should be expanded before final generation.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/qc_sensor_overview.png}
+    \caption{Visual evaluation of generated and real SD302A fingerprints.
+    Each sensor panel contains two synthetic samples and one real image from
+    the same SD302A sensor style, ordered left-to-right as synthetic,
+    synthetic, and real.  The panels separate sensors A--H to highlight
+    sensor-specific differences in crop geometry, background, contrast, and
+    ridge clarity.}
+    \label{fig:sensor_overview}
+\end{figure}
+\FloatBarrier
 
 \paragraph{Cross-sensor extension.}
 
@@ -490,29 +503,5 @@ gap with stronger ridge/minutiae realism metrics.
     \bibliography{main}
     \bibliographystyle{iclr2026_conference}
 }
-
-\appendix
-
-\section{Additional Qualitative Results}
-\label{app:qualitative}
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/qc_sensor_overview.png}
-    \caption{QC sheet for the current SD302A synthetic dataset.  The dataset
-    contains 500 synthetic identities and 10 impressions per identity,
-    distributed across SD302A sensors A--H.}
-    \label{fig:sensor_overview}
-\end{figure}
-
-\begin{figure}[t]
-    \centering
-    \includegraphics[width=\linewidth]{figures/qc_identity_spread_first6.png}
-    \caption{Examples of multiple impressions generated from the same
-    synthetic identity under different sensor conditions.  Pose-mask alignment
-    reduces the single-pose failure mode observed when the raw identity ridge is
-    used directly as the control image.}
-    \label{fig:identity_spread}
-\end{figure}
 
 \end{document}
