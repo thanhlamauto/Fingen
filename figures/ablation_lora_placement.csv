@@ -1,0 +1,9 @@
+placement,trainable_params,relative_to_ours,decision
+No adapter,0,0.0,lower bound; cannot adapt sensor appearance
+Stage-2 mid-attn qkv only,8192,0.6666666666666666,changes attention scores/values but leaves output remix fixed
+Stage-2 mid-attn proj_out only,4096,0.3333333333333333,remixes attention output but cannot change q/k/v content
+Stage-2 mid-attn qkv + proj_out,12288,1.0,selected; global style adapter with frozen ridge path
+ControlNet mid-attn qkv + proj_out,12288,1.0,rejected; edits the structural ridge-control path
+All Stage-2 self-attention blocks,119808,9.75,rejected; 9.8x more adapter capacity for 80-image fitting
+Full ControlNet fine-tune,7040000,572.9166666666666,rejected; adapts structure rather than target appearance
+Full Stage-2 UNet fine-tune,23390000,1903.4830729166667,rejected; too many parameters for small sensor adapters

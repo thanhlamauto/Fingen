@@ -1,0 +1,34 @@
+{
+  "samples_per_db": 250,
+  "total_samples": 1000,
+  "embedding": "48x48 grayscale + 32x32 local-contrast + 32x32 foreground-mask + intensity/local-contrast histograms",
+  "pca_dims": 50,
+  "tsne_perplexity": 35,
+  "silhouette_2d": 0.44612959027290344,
+  "clusters": {
+    "DB1": {
+      "n": 250,
+      "mean_intra_radius": 9.236900329589844,
+      "nearest_center_distance": 44.57853317260742,
+      "separation_ratio": 4.826135635375977
+    },
+    "DB2": {
+      "n": 250,
+      "mean_intra_radius": 12.359861373901367,
+      "nearest_center_distance": 24.25432014465332,
+      "separation_ratio": 1.9623456001281738
+    },
+    "DB3": {
+      "n": 250,
+      "mean_intra_radius": 10.888900756835938,
+      "nearest_center_distance": 31.46636390686035,
+      "separation_ratio": 2.8897650241851807
+    },
+    "DB4": {
+      "n": 250,
+      "mean_intra_radius": 14.38660717010498,
+      "nearest_center_distance": 24.25432014465332,
+      "separation_ratio": 1.6858958005905151
+    }
+  }
+}

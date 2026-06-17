@@ -1,0 +1,36 @@
+{
+  "DB1": {
+    "n_pairs": 50,
+    "mean_matches": 126.19999694824219,
+    "std_matches": 119.71906280517578,
+    "median_matches": 84.0,
+    "mean_score": 0.3187180459499359
+  },
+  "DB2": {
+    "n_pairs": 50,
+    "mean_matches": 123.45999908447266,
+    "std_matches": 63.84075164794922,
+    "median_matches": 140.5,
+    "mean_score": 0.3649790287017822
+  },
+  "DB3": {
+    "n_pairs": 50,
+    "mean_matches": 158.67999267578125,
+    "std_matches": 87.87965393066406,
+    "median_matches": 185.0,
+    "mean_score": 0.4201068878173828
+  },
+  "DB4": {
+    "n_pairs": 50,
+    "mean_matches": 99.86000061035156,
+    "std_matches": 58.58223342895508,
+    "median_matches": 101.0,
+    "mean_score": 0.35562601685523987
+  },
+  "ALL": {
+    "n_pairs": 200,
+    "mean_matches": 127.05000305175781,
+    "std_matches": 87.86283111572266,
+    "median_matches": 126.0
+  }
+}

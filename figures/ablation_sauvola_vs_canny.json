@@ -1,0 +1,71 @@
+{
+  "config": {
+    "seed": 20260617,
+    "sensors": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G",
+      "H"
+    ],
+    "per_sensor": 20,
+    "num_images": 160,
+    "foreground_threshold": 248,
+    "canny": {
+      "low": 100,
+      "high": 200,
+      "preprocess": "PIL autocontrast cutoff=0.2, GaussianBlur radius=1.0",
+      "implementation": "Sobel gradients, non-maximum suppression, hysteresis"
+    },
+    "small_component_px": 32
+  },
+  "summary": {
+    "Sauvola": {
+      "active_fg_pct": {
+        "mean": 53.29320211570282,
+        "std": 7.174303892821554
+      },
+      "interior_active_pct": {
+        "mean": 33.12554440240878,
+        "std": 7.316232723677416
+      },
+      "components_per_10k_active": {
+        "mean": 83.2752737174436,
+        "std": 93.4060034236002
+      },
+      "small_component_pct": {
+        "mean": 49.3520756476917,
+        "std": 15.45287666840432
+      },
+      "largest_component_px": {
+        "mean": 13236.8625,
+        "std": 15630.197605951776
+      }
+    },
+    "Canny": {
+      "active_fg_pct": {
+        "mean": 28.271513221618008,
+        "std": 10.372652372025955
+      },
+      "interior_active_pct": {
+        "mean": 0.0,
+        "std": 0.0
+      },
+      "components_per_10k_active": {
+        "mean": 230.6045868072189,
+        "std": 140.38156676249972
+      },
+      "small_component_pct": {
+        "mean": 61.447735155226034,
+        "std": 15.14495866591095
+      },
+      "largest_component_px": {
+        "mean": 1723.25625,
+        "std": 2071.741868063012
+      }
+    }
+  }
+}

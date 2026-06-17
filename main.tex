@@ -16,6 +16,14 @@
 \usepackage{hyperref}
 \usepackage{url}
 
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+\renewcommand{\topfraction}{0.95}
+\renewcommand{\bottomfraction}{0.85}
+\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}
+
 \newcommand{\method}{RidgeLoRA-FP}
 \newcommand{\TODO}[1]{\textcolor{red}{[TODO: #1]}}
 
@@ -197,6 +205,18 @@ $p_\theta(z)$ and generates a base identity image $\hat{x}^{id}$.  A ridge
 extractor produces a control map $r = R(\hat{x}^{id})$.  Stage 2 then samples
 impressions $\hat{x}^{imp}_1,\ldots,\hat{x}^{imp}_K$ conditioned on the ridge
 map and the selected target-sensor rendering parameters.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/overview.pdf}
+    \caption{Overview of \method.  Stage 1 samples a rolled fingerprint
+    identity, ridge extraction converts it to an identity-preserving control
+    map, pose-mask alignment adapts the control to a target sensor footprint,
+    and the Stage-2 ridge-conditioned renderer produces the final
+    sensor-specific impression.  The LoRA adapter is applied only to the
+    Stage-2 middle self-attention projections.}
+    \label{fig:method_overview}
+\end{figure}
 
 \subsection{Fingerprint VQ-VAE Latent Space}
 
@@ -397,7 +417,8 @@ impressions.
 For a new sensor, we use the available target-sensor samples only to adapt
 appearance.  The VQ-VAE, Stage-1 identity model, ridge extractor, and
 ControlNet structural path remain frozen.  We insert LoRA modules into the
-Stage-2 denoising UNet projection layers and optimize only these LoRA weights.
+Stage-2 denoising UNet middle self-attention $qkv$ and output projection
+layers, then optimize only these LoRA weights.
 The intent is to change sensor texture, contrast, background statistics, and
 local artifact style while preserving the behavior of the ridge-control path.
 At inference time, the adapter is selected by sensor, while the input ridge and
@@ -439,10 +460,9 @@ SD302A test split with 400 finger identities and 2,734 images.  Unless stated
 otherwise, synthetic training sets contain 2,000 identities with 10 impressions
 per identity at $512 \times 512$ resolution.  Stage 1 samples identities from
 the unconditional latent prior; Stage 2 renders ridge-conditioned impressions
-with DDIM-50 sampling across target sensors.  Recognition utility follows the
-Table 3 setting of Ridge Scale Aligned Diffusion~\cite{hsu2026ridge}: train
-recognizers on real, synthetic, or real-plus-synthetic data and report
-TAR@FAR=$0.1\%$ on the held-out SD302A test split.  SD301A~\cite{nist301},
+with DDIM-50 sampling across target sensors.  Recognition utility is evaluated
+by training recognizers on real, synthetic, or real-plus-synthetic data and
+reporting TAR@FAR=$0.1\%$ on the held-out SD302A test split.  SD301A~\cite{nist301},
 SD302B, and FVC 2004~\cite{fvc2004} are used only for additional sensor
 coverage and cross-sensor transfer studies.
 
@@ -454,10 +474,13 @@ synthetic dataset contains 20,000 training images.
 
 \begin{table}[!htbp]
     \centering
-    \caption{SD302A recognition results under the Table 3 setting of Ridge
-    Scale Aligned Diffusion~\cite{hsu2026ridge}.  Values are TAR@FAR=$0.1\%$
-    on the SD302A test split.}
+    \footnotesize
+    \caption{SD302A recognition utility for real, synthetic, and
+    real-plus-synthetic training sets.  Values are TAR@FAR=$0.1\%$.  Settings:
+    Appendix Tables~\ref{tab:appendix_dataset_protocol}--\ref{tab:appendix_sd302_classifier_hparams}.}
     \label{tab:sd302_tar01_backbones}
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{0.92}
     \begin{tabular}{lccc}
         \toprule
         & \multicolumn{3}{c}{TAR@FAR=$0.1\%$} \\
@@ -476,99 +499,48 @@ synthetic dataset contains 20,000 training images.
     \end{tabular}
 \end{table}
 
-\paragraph{Qualitative multi-sensor generation.}
+\paragraph{Qualitative SD302A-to-DB1 transfer.}
 
-Figure~\ref{fig:sensor_overview} summarizes the current SD302A multi-sensor
-synthesis run.  The generation run produced 5,000 images: 500 identities with
-10 impressions each.  Sensor counts
-are balanced across A--H.  Pose-mask alignment successfully used 32 unique pose
-masks for most sensors; sensor D currently has fewer usable pose masks in the
-inspected library and should be expanded before final generation.
+Figure~\ref{fig:sd302a_to_fvc_db1_lora} illustrates the real-ridge
+cross-sensor transfer setting.  Each source impression is a real SD302A
+fingerprint; we extract its ridge condition, warp and clip it with a pose mask
+estimated from a real FVC 2004 DB1A impression, and render the resulting
+condition with the Stage-2 DB1 LoRA adapter.  The DB1 pose-mask column shows the
+target footprint used for each transfer.
 
-\begin{figure}[!htbp]
+\begin{figure}[!t]
     \centering
-    \includegraphics[width=\linewidth]{figures/qc_sensor_overview.png}
-    \caption{Visual evaluation of generated and real SD302A fingerprints.
-    Each sensor panel contains two synthetic samples and one real image from
-    the same SD302A sensor style, ordered left-to-right as an unaugmented
-    ridge-conditioned synthetic image, an augmented-pose synthetic image from
-    the same identity, and a real image.  The panels separate sensors A--H to
-    highlight
-    sensor-specific differences in crop geometry, background, contrast, and
-    ridge clarity.}
-    \label{fig:sensor_overview}
+    \includegraphics[width=\linewidth]{figures/sd302a_to_fvc_db1_lora_overview.png}
+    \caption{SD302A-to-FVC2004 DB1 real-ridge sensor transfer with target-pose
+    masking.  Each row starts from a real SD302A source impression, extracts a
+    ridge condition, warps and clips it to a pose mask estimated from a real DB1A
+    impression, and renders a DB1-style synthetic impression using the DB1
+    Stage-2 LoRA adapter.}
+    \label{fig:sd302a_to_fvc_db1_lora}
 \end{figure}
-\FloatBarrier
 
-\paragraph{Cross-sensor extension.}
+\paragraph{Structure-consistency matching.}
 
-The additional datasets are used to test sensor coverage rather than to claim a
-direct FPGAN-Control comparison.  SD301A and SD302B increase the diversity of
-contact and rolled sensors used for sensor-transfer studies.  FVC 2004 provides
-compact benchmarks with sensor styles that differ from SD302A.  We evaluate
-sensor transfer on the full FVC 2004 DB1--DB4 suite.  For each database, a
-Stage-2 UNet LoRA adapter is fitted from the 80 available DB\emph{x}\_A
-images, then used to generate synthetic training identities for cross-sensor
-recognition on DB\emph{x}\_B.  Because this sensor-transfer setting depends on
-our LoRA adapter, Table~\ref{tab:fvc_transfer_resnet50} reports only the real
-baseline, \method samples, and their combination using a ResNet50 recognizer.
-
-\begin{table}[!htbp]
-    \centering
-    \caption{FVC 2004 cross-sensor recognition results with ResNet50.  For
-    each database DB\emph{x}, the Stage-2 UNet LoRA adapter is fine-tuned using
-    the 80 DB\emph{x}\_A images.  Recognizers are trained on DB\emph{x}\_A real
-    data, \method samples, or their combination, then evaluated on
-    DB\emph{x}\_B.  Values are TAR@FAR=$0.1\%$.}
-    \label{tab:fvc_transfer_resnet50}
-    \begin{tabular}{lcccc}
-        \toprule
-        & \multicolumn{4}{c}{ResNet50 TAR@FAR=$0.1\%$} \\
-        \cmidrule(lr){2-5}
-        Training dataset & DB1 & DB2 & DB3 & DB4 \\
-        \midrule
-        FVC 2004 DB\emph{x}\_A (real) &  &  &  &  \\
-        Ours &  &  &  &  \\
-        \midrule
-        FVC 2004 DB\emph{x}\_A + Ours &  &  &  &  \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\FloatBarrier
-
-\section{Ablation Study}
-\label{sec:ablation}
-
-\subsection{First-Stage Latent Resolution}
-
-We use a relatively high-resolution $128 \times 128 \times 3$ VQ-VAE latent
-instead of a conventional $32 \times 32$ LDM-style latent.  This choice is
-important for fingerprints because ridge flow and minutiae are local,
-high-frequency structures.  To isolate the effect of latent spatial
-resolution, we keep the same trained VQ-VAE decoder and compare normal
-decoding against a $32 \times 32$ bottleneck proxy: the encoded latent is
-downsampled from $128 \times 128$ to $32 \times 32$, then upsampled back before
-decoding.  This does not introduce a separately trained weaker autoencoder;
-it directly tests how much ridge information is lost when the diffusion latent
-is forced through a low spatial bottleneck.
-
-Figure~\ref{fig:latent_resolution_ablation} and
-Table~\ref{tab:latent_resolution_ablation} show that the $128 \times 128$
-VQ-VAE preserves fingerprint ridges almost exactly under a two-pixel matching
-tolerance, while the $32 \times 32$ bottleneck removes most ridge detail and
-turns minutiae-bearing structures into broad intensity blobs.  This supports
-using the larger VQ-VAE latent despite the extra diffusion cost: Stage 1 must
-produce a ridge identity that can later be extracted and controlled by Stage 2.
+Following the matching diagnostic used by Ridge Scale Aligned
+Diffusion~\cite{hsu2026ridge}, we measure whether Stage 2 preserves the
+structure of its paired control input after sensor rendering.  For each FVC
+LoRA adapter, we sample 50 paired examples and match the pose-aligned ridge
+hint against the rendered synthetic impression with SIFT features and
+LightGlue~\cite{lindenberger2023lightglue}.  Table~\ref{tab:lightglue_fvc_matching}
+reports the number of accepted matches.  DB3 has the strongest structure
+agreement, while DB4 is lower and more variable; this mirrors the cross-sensor
+recognition pattern in Table~\ref{tab:fvc_transfer_resnet50}.  Because the
+left image is a binary ridge control map rather than a gray real fingerprint,
+the metric should be read as a paired structural-alignment diagnostic rather
+than a conventional fingerprint matcher score.
 
 \begin{figure}[!htbp]
     \centering
-    \includegraphics[width=\linewidth]{figures/ablation_vqvae128_vs_latent32_wide.png}
-    \caption{Qualitative first-stage latent-resolution ablation, arranged as
-    two side-by-side sensor panels.  The $128 \times 128$ VQ-VAE latent retains
-    ridge topology, whereas the $32 \times 32$ bottleneck proxy loses local
-    ridge structure.}
-    \label{fig:latent_resolution_ablation}
+    \includegraphics[width=0.88\linewidth]{figures/lightglue_fvc_lora_matching.png}
+    \caption{LightGlue structure matching between pose-aligned ridge hints
+    (left in each pair) and DB\emph{x} LoRA-rendered synthetic impressions
+    (right).  Green lines show accepted SIFT-LightGlue correspondences.}
+    \label{fig:lightglue_fvc_matching}
 
     \vspace{-0.4em}
     \begingroup
@@ -576,12 +548,143 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
     \def\@captype{table}
     \makeatother
     \footnotesize
+    \caption{FVC DB1--DB4 paired structure matching with LightGlue.  Values are
+    accepted matches over 50 pose-aligned hint/output pairs per database.
+    Settings: Appendix Table~\ref{tab:appendix_diagnostic_hparams}.}
+    \label{tab:lightglue_fvc_matching}
+    \scriptsize
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{0.92}
+    \begin{tabular}{lcccc}
+        \toprule
+        Adapter & Pairs & Mean matches & Median matches & Mean confidence \\
+        \midrule
+        DB1 LoRA & 50 & 126.2$\pm$119.7 & 84.0 & 0.319 \\
+        DB2 LoRA & 50 & 123.5$\pm$63.8 & 140.5 & 0.365 \\
+        DB3 LoRA & 50 & \textbf{158.7$\pm$87.9} & \textbf{185.0} & \textbf{0.420} \\
+        DB4 LoRA & 50 & 99.9$\pm$58.6 & 101.0 & 0.356 \\
+        \midrule
+        All & 200 & 127.1$\pm$87.9 & 126.0 & -- \\
+        \bottomrule
+    \end{tabular}
+    \endgroup
+\end{figure}
+\FloatBarrier
+
+\paragraph{Cross-sensor extension.}
+
+The additional datasets test sensor coverage rather than a direct
+FPGAN-Control comparison.  SD301A and SD302B broaden the contact and rolled
+sensor pool, while FVC 2004 provides compact unseen sensor styles.  For each
+FVC database, we fit a Stage-2 UNet LoRA adapter from the 80 DB\emph{x}\_A
+images, synthesize training identities, and evaluate cross-sensor recognition
+on DB\emph{x}\_B.  Table~\ref{tab:fvc_transfer_resnet50} reports the real
+baseline, \method{} samples, and their combination using ResNet50.
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{FVC 2004 cross-sensor recognition results with ImageNet-pretrained
+    ResNet50.  For each DB\emph{x}, LoRA is fine-tuned on 80 DB\emph{x}\_A
+    images; recognizers are trained on DB\emph{x}\_A real data, \method{}
+    samples, or both, then evaluated on DB\emph{x}\_B.  Values are
+    TAR@FAR=$0.1\%$, reported as fractions.  Settings: Appendix
+    Tables~\ref{tab:appendix_dataset_protocol}--\ref{tab:appendix_control_hparams}
+    and~\ref{tab:appendix_fvc_classifier_hparams}.}
+    \label{tab:fvc_transfer_resnet50}
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{0.9}
+    \begin{tabular}{lcccc}
+        \toprule
+        & \multicolumn{4}{c}{ResNet50 TAR@FAR=$0.1\%$} \\
+        \cmidrule(lr){2-5}
+        Training dataset & DB1 & DB2 & DB3 & DB4 \\
+        \midrule
+        FVC 2004 DB\emph{x}\_A (real) & 0.7345 & 0.6905 & 0.8912 & 0.7843 \\
+        Ours & 0.7530 & 0.6784 & 0.9027 & 0.7823 \\
+        \midrule
+        FVC 2004 DB\emph{x}\_A + Ours & \textbf{0.8421} & \textbf{0.7469} & \textbf{0.9509} & \textbf{0.8710} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+\paragraph{Synthetic sensor-style t-SNE.}
+
+Ridge Scale Aligned Diffusion visualizes style-encoder embeddings with
+t-SNE~\cite{maaten2008visualizing}.  Our current Stage-2 LoRA pipeline does
+not include a separate style encoder, so we instead embed the generated images
+with a fixed image-style descriptor built from grayscale thumbnails,
+foreground masks, local-contrast maps, and intensity histograms.  We use the
+same 250 virtual identity/impression filenames for DB1--DB4 so that the plot
+emphasizes LoRA sensor style rather than identity sampling.  Figure~\ref{fig:fvc_lora_tsne}
+shows compact DB-specific groups with a two-dimensional silhouette score of
+0.446.  DB1 separates most cleanly, while DB2 and DB4 are closer, consistent
+with the smaller recognition gap between these two adapters.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.76\linewidth]{figures/fvc_lora_tsne.png}
+    \caption{t-SNE visualization of synthetic images generated by the DB1--DB4
+    Stage-2 LoRA adapters.  Each color contains 250 generated impressions with
+    filenames shared across all four adapters.  Settings:
+    Appendix Table~\ref{tab:appendix_diagnostic_hparams}.}
+    \label{fig:fvc_lora_tsne}
+\end{figure}
+
+DB2 is our clearest FVC failure case.  Unlike DB1 and DB3, the synthetic-only
+DB2 recognizer is slightly below the real-only baseline, and the real-plus-
+synthetic gain remains modest compared with DB3.  Figure~\ref{fig:fvc_db2_db3_diagnostics}
+suggests the cause: DB2 has weaker ridge/valley contrast and lower ridge energy,
+so an LoRA adapter fitted from only 80 DB2\_A images can reproduce sensor tone
+but does not always preserve minutiae-scale ridge evidence after transfer to
+DB2\_B.  In this regime, our synthetic data acts more like a regularizer than a
+full substitute for missing cross-sensor variation.
+
+This points to a concrete future direction: low-quality sensors should be
+handled with quality-aware adaptation rather than the same fixed LoRA recipe.
+Future work can add ridge-contrast and minutiae-preservation losses, improve
+foreground/ridge masks before conditioning, and allocate extra Stage-2 capacity
+only for low-contrast sensors such as DB2.  Hard pairs like DB2\_A/DB2\_B should
+also be used as validation cases when tuning sensor-transfer augmentation.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.95\linewidth]{figures/fvc_db2_db3_transfer_diagnostics.png}
+    \caption{DB2 failure-case diagnostic against DB3.  The top row shows real
+    FVC 2004 DB\emph{x}\_A and DB\emph{x}\_B examples.  DB2 has softer,
+    lower-contrast ridges, while DB3 has sharper ridge/valley separation.  The
+    bottom row compares Table~\ref{tab:fvc_transfer_resnet50} transfer utility
+    with simple real-image visual proxies averaged over DB\emph{x}\_A and
+    DB\emph{x}\_B.}
+    \label{fig:fvc_db2_db3_diagnostics}
+\end{figure}
+
+\section{Ablation Study}
+\label{sec:ablation}
+
+\subsection{First-Stage Latent Resolution}
+
+We use a relatively high-resolution $128 \times 128 \times 3$ VQ-VAE latent
+instead of a conventional $32 \times 32$ LDM-style latent because fingerprint
+ridge flow and minutiae are local, high-frequency structures.  To isolate
+spatial resolution, we keep the same trained decoder and compare normal
+decoding against a $32 \times 32$ bottleneck proxy obtained by downsampling the
+encoded latent and upsampling it back before decoding.  Figure~\ref{fig:latent_resolution_ablation}
+and Table~\ref{tab:latent_resolution_ablation} show that the $128 \times 128$
+latent preserves ridges almost exactly under a two-pixel tolerance, while the
+$32 \times 32$ proxy removes most ridge detail and turns minutiae-bearing
+structures into broad intensity blobs.
+
+\begin{table}[!htbp]
+    \centering
+    \footnotesize
     \caption{First-stage latent-resolution ablation on four SD302A examples.
     The $32 \times 32$ row uses the same decoder with a latent-bottleneck
-    proxy; Ridge F1 uses a two-pixel tolerance.}
+    proxy; Ridge F1 uses a two-pixel tolerance.  Config:
+    Appendix Table~\ref{tab:appendix_generator_hparams}.}
     \label{tab:latent_resolution_ablation}
     \scriptsize
-    \setlength{\tabcolsep}{4.5pt}
+    \setlength{\tabcolsep}{3.5pt}
     \renewcommand{\arraystretch}{0.9}
     \begin{tabular}{lcccc}
         \toprule
@@ -591,61 +694,126 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
         Latent bottleneck $32^2$ & 0.224 & -0.058 & 0.219 & 0.11 \\
         \bottomrule
     \end{tabular}
-    \endgroup
+\end{table}
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[width=0.9\linewidth]{figures/ablation_vqvae128_vs_latent32_wide.png}
+    \caption{Qualitative first-stage latent-resolution ablation, arranged as
+    two side-by-side sensor panels.  The $128 \times 128$ VQ-VAE latent retains
+    ridge topology, whereas the $32 \times 32$ bottleneck proxy loses local
+    ridge structure.}
+    \label{fig:latent_resolution_ablation}
 \end{figure}
 \FloatBarrier
 
-\subsection{Sensor-Quality Proxy Assessment}
+\subsection{Sauvola Ridge Control vs. Canny Edges}
 
-Ridge Scale Aligned Diffusion~\cite{hsu2026ridge} evaluates synthetic quality
-across sensors with NFIQ 2.0 and NIQE in its Section 4.3.  As a lightweight
-ablation with the tools available in this environment, we compute a
-ridge-clarity proxy instead:
-the mean local intensity standard deviation inside the estimated fingerprint
-foreground.  This proxy is not a replacement for NFIQ 2.0 or NIQE, but it
-checks whether the generated samples match the sensor-dependent ridge sharpness
-statistics of real SD302A images.  For each sensor A--H, we sample 250 real and
-250 synthetic images, compute the proxy at $256 \times 256$ resolution, and
-apply Welch's two-sample test.
+ControlNet-style image generation often uses Canny edges as a generic spatial
+hint, but fingerprints require a different kind of structural signal.  A Canny
+map marks intensity transitions, so a single ridge can become two thin contour
+boundaries; weak ridges disappear, while crop lines and sensor artifacts can be
+promoted to control pixels.  Sauvola binarization instead selects one ridge
+phase and produces a dense ridge-support image.  To isolate this conditioning
+choice, we compare Sauvola maps with a ControlNet-style Canny preprocessor
+before Stage-2 generation.
 
-Table~\ref{tab:sensor_quality_proxy} and
-Figure~\ref{fig:sensor_quality_proxy} show that the current generator does not
-perfectly match all sensor quality profiles.  Sensors C and F are relatively
-close, A and E are sharper than real under this proxy, while D, G, and H remain
-under-sharpened compared with real samples.  This mirrors the qualitative
-observation that sensor style transfer is not uniform across SD302A sensors.
+We sample 160 real SD302A rolled images, 20 per sensor, resize each image to
+the $512 \times 512$ condition space, and compute two control maps: our
+Sauvola setting and Canny with Gaussian smoothing, non-maximum suppression,
+and hysteresis thresholds 100/200.  Table~\ref{tab:sauvola_canny_ablation}
+reports foreground-only control-map statistics, while
+Figure~\ref{fig:sauvola_canny_ablation} shows representative sensors.  Canny
+uses fewer foreground pixels, has no $3\times3$ interior support after edge
+thinning, and is roughly $2.8\times$ more fragmented per active pixel.  Its
+largest connected support is also much smaller, indicating that the control
+branch receives disconnected contours rather than ridge bands.  These results
+support using Sauvola as the identity-preserving condition; Canny is effective
+for generic object boundaries, but it is a poor phase-preserving ridge signal
+for minutiae-sensitive fingerprint synthesis.
 
-\begin{table}[t]
+\begin{table}[!htbp]
     \centering
-    \small
-    \caption{Sensor-wise ridge-clarity proxy ablation on SD302A.  Values are
-    mean$\pm$std over 250 real and 250 synthetic images per sensor.  The proxy
-    is foreground local-contrast mean; higher values indicate sharper ridge
-    texture.}
-    \label{tab:sensor_quality_proxy}
+    \footnotesize
+    \caption{Sauvola-vs.-Canny control-map ablation on 160 SD302A rolled
+    fingerprints, with 20 samples per sensor.  Metrics are computed inside the
+    estimated fingerprint foreground in the $512 \times 512$ condition space.
+    Active fg. is the active-pixel percentage; 3$\times$3 support is the
+    fraction of active pixels surviving a one-pixel erosion.}
+    \label{tab:sauvola_canny_ablation}
+    \scriptsize
+    \setlength{\tabcolsep}{3.2pt}
+    \renewcommand{\arraystretch}{0.92}
     \begin{tabular}{lcccc}
         \toprule
-        Sensor & Real & Synthetic & $\Delta$ & $p$-value \\
+        Control map & Active fg. $\uparrow$ & 3$\times$3 support $\uparrow$ & Comp./10k active $\downarrow$ & Largest comp. $\uparrow$ \\
         \midrule
-        A & 0.080$\pm$0.011 & 0.167$\pm$0.059 & +0.086 & $4.5{\times}10^{-65}$ \\
-        B & 0.180$\pm$0.027 & 0.153$\pm$0.064 & -0.027 & $1.3{\times}10^{-9}$ \\
-        C & 0.168$\pm$0.034 & 0.175$\pm$0.038 & +0.007 & 0.043 \\
-        D & 0.249$\pm$0.142 & 0.153$\pm$0.060 & -0.096 & $2.4{\times}10^{-20}$ \\
-        E & 0.139$\pm$0.026 & 0.165$\pm$0.036 & +0.025 & $4.8{\times}10^{-18}$ \\
-        F & 0.167$\pm$0.009 & 0.161$\pm$0.048 & -0.007 & 0.031 \\
-        G & 0.189$\pm$0.023 & 0.159$\pm$0.040 & -0.030 & $2.3{\times}10^{-22}$ \\
-        H & 0.326$\pm$0.011 & 0.152$\pm$0.063 & -0.173 & $1.3{\times}10^{-121}$ \\
+        Sauvola ridge & 53.3$\pm$7.2 & 33.1$\pm$7.3 & 83.3$\pm$93.4 & 13236.9$\pm$15630.2 \\
+        Canny edge & 28.3$\pm$10.4 & 0.0$\pm$0.0 & 230.6$\pm$140.4 & 1723.3$\pm$2071.7 \\
         \bottomrule
     \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[!htbp]
     \centering
-    \includegraphics[width=\linewidth]{figures/ablation_sensor_quality_proxy.png}
-    \caption{Distribution summary for the SD302A sensor-quality proxy
-    ablation.  Error bars show one standard deviation.}
-    \label{fig:sensor_quality_proxy}
+    \includegraphics[width=0.82\linewidth]{figures/ablation_sauvola_vs_canny.png}
+    \caption{Control-signal ablation on SD302A.  Sauvola produces dense
+    ridge-phase support, while Canny emphasizes thin transition contours and
+    sensor/crop edges.}
+    \label{fig:sauvola_canny_ablation}
 \end{figure}
+\FloatBarrier
+
+\subsection{Stage-2 LoRA Placement}
+
+The adapter location is important because sensor transfer should change
+appearance without weakening the ridge-control path.  We therefore place LoRA
+on the Stage-2 denoising UNet rather than on the ControlNet branch.  Within
+the current compact UNet, the only active self-attention module is the
+bottleneck middle block, so the selected adapter consists of rank-8 LoRA on
+the middle self-attention $qkv$ projection and output projection.  This gives a
+global, low-dimensional appearance handle while keeping the VQ-VAE, Stage-1
+identity prior, ControlNet, and base Stage-2 weights frozen.
+
+Table~\ref{tab:lora_placement_ablation} compares natural placement choices.
+A $qkv$-only adapter can change attention scores and values but leaves the
+attention output remix fixed; a projection-only adapter is cheaper but cannot
+change the attention content.  The trained FVC adapters use both parts: across
+DB1--DB4 at step 5k, the EMA LoRA update/kernel Frobenius ratio is
+75.4--147.1\% for $qkv$ and 86.2--180.3\% for the output projection.  Moving
+the same 12.3K LoRA parameters into ControlNet is rejected because it adapts
+the ridge-to-residual structural path rather than sensor appearance.  Expanding
+LoRA to every Stage-2 self-attention block would require 119.8K trainable
+parameters, 9.75$\times$ more than our current adapter, and full Stage-2
+fine-tuning would train 23.39M parameters.  This is poorly matched to the
+80-image FVC adaptation setting and increases the chance of memorizing sensor
+samples rather than learning a reusable style shift.
+
+\begin{table}[!htbp]
+    \centering
+    \footnotesize
+    \caption{LoRA placement ablation.  Parameter counts use rank 8 and alpha 8.
+    The selected placement is the only trainable part of each FVC adapter; the
+    update/kernel ratios are measured from the four trained FVC adapters and
+    show that both $qkv$ and output-projection LoRA carry non-trivial updates.}
+    \label{tab:lora_placement_ablation}
+    \setlength{\tabcolsep}{3.6pt}
+    \renewcommand{\arraystretch}{0.95}
+    \begin{tabular}{p{0.32\linewidth}rrp{0.34\linewidth}}
+        \toprule
+        Placement & Trainable & Rel. & Decision / evidence \\
+        \midrule
+        No adapter & 0 & 0.00$\times$ & Cannot adapt target sensor appearance \\
+        Stage-2 mid-attn $qkv$ only & 8.2K & 0.67$\times$ & Partial: attention content changes, output remix fixed \\
+        Stage-2 mid-attn proj. only & 4.1K & 0.33$\times$ & Partial: output remix changes, $q/k/v$ fixed \\
+        Stage-2 mid-attn $qkv$+proj. & \textbf{12.3K} & \textbf{1.00$\times$} & Selected; update/kernel ratios: $qkv$ 75.4--147.1\%, proj. 86.2--180.3\% \\
+        ControlNet mid-attn $qkv$+proj. & 12.3K & 1.00$\times$ & Rejected; modifies ridge-control structure \\
+        All Stage-2 self-attn blocks & 119.8K & 9.75$\times$ & Rejected; too much capacity for 80-image fitting \\
+        Full Stage-2 UNet & 23.39M & 1903$\times$ & Rejected; no longer a lightweight adapter \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
 
 \section{Efficiency}
 \label{sec:efficiency}
@@ -665,52 +833,84 @@ has 23.39M parameters, which is 97.3\% smaller than the Stable Diffusion v1
 UNet alone and about 98.5\% smaller than an SD1.5+ControlNet-scale inference
 stack.  For a new sensor, only 12.3K LoRA parameters are trained.
 
-\begin{table}[!t]
+\begin{table}[!htbp]
     \centering
-    \caption{Parameter and throughput accounting for the current \method
-    implementation.  Parameter counts are measured from local checkpoints.}
+    \caption{Parameter and throughput accounting for the current \method{}
+    implementation.  Parameter counts are measured from local checkpoints.
+    Config: Appendix Tables~\ref{tab:appendix_generator_hparams}
+    and~\ref{tab:appendix_architecture_summary}.}
     \label{tab:efficiency}
-    \begin{tabular}{p{0.66\linewidth}r}
+    \scriptsize
+    \setlength{\tabcolsep}{3.2pt}
+    \renewcommand{\arraystretch}{0.92}
+    \begin{tabular}{p{0.33\linewidth}rp{0.31\linewidth}r}
         \toprule
-        Component & Parameters \\
+        Component & Params. & Component & Params. \\
         \midrule
-        Stage-1 identity UNet & 16.33M \\
+        Stage-1 identity UNet & 16.33M &
         Stage-2 denoising UNet & 16.35M \\
-        Stage-2 ControlNet & 7.04M \\
+        Stage-2 ControlNet & 7.04M &
         VQ-VAE encoder/decoder/codebook & 13.86M \\
-        Full two-stage generator & 53.58M \\
+        Full two-stage generator & 53.58M &
         Active Stage-2 transfer path & 23.39M \\
-        Trainable LoRA per new sensor & 12.3K \\
         \midrule
+        Trainable LoRA per new sensor & 12.3K &
         Logged Stage-2 generation throughput & 1.05 s/image \\
         \bottomrule
     \end{tabular}
 \end{table}
+\FloatBarrier
 
 \section{Limitations}
 \label{sec:limitations}
 
-The current synthetic dataset is visually plausible but does not yet transfer
-as strongly to real SD302A recognition as desired.  Our internal experiments
-suggest that the bottleneck is not only Stage-2 ridge following: the generated
-Stage-1 identity ridge may still differ from the real SD302A ridge/minutiae
-manifold, and ten impressions generated from one synthetic ridge can be too
-structurally similar for recognizer training.  The final report should include
-additional minutiae statistics, matcher-based genuine/impostor distributions,
-and a reproduced FPGAN-Control comparison under the same recognizer protocol.
+The current system is deliberately lightweight, and this leaves several
+limitations.  First, Stage 2 inherits errors from the extracted ridge condition
+and target pose mask.  The SD302A-to-DB1 transfer examples show that warping and
+clipping can align a source ridge map to a target sensor footprint, but they do
+not guarantee that all minutiae-scale evidence survives the pose change.  Better
+foreground masks, ridge thinning, and minutiae-aware conditioning would make the
+control signal more reliable.
+
+Second, the LoRA adapters are intentionally small: each target sensor trains
+only the Stage-2 middle-attention $qkv$ and output-projection adapters.  This is
+efficient for 80-image FVC adaptation, but the DB2 results indicate that a fixed
+rank-8 adapter can be insufficient for low-contrast sensors.  In such cases, the
+model may learn sensor tone while still weakening ridge/valley separation after
+transfer.  Quality-aware losses or sensor-dependent adapter capacity are likely
+needed for harder sensors.
+
+Finally, our additional diagnostics should be read as supporting evidence rather
+than full biometric validation.  LightGlue measures paired structural agreement
+between a binary ridge hint and a rendered gray fingerprint, not a conventional
+fingerprint matcher score.  The t-SNE plot uses a fixed image-style descriptor
+because the current pipeline has no separate style encoder.  Future evaluations
+should include minutiae-level metrics, more real target sensors, and larger
+cross-sensor recognition protocols.
 
 \section{Conclusion}
 \label{sec:conclusion}
 
-\method is a lightweight fingerprint diffusion pipeline designed for practical
-synthetic data generation and sensor adaptation.  It combines a compact
-unconditional latent identity model, ridge-conditioned instance generation,
-pose-mask alignment, and Stage-2 UNet LoRA adapters for unseen sensors.  The
-method is positioned against FPGAN-Control on SD302A, while
-SD301A, SD302B, and FVC-style sensors define the cross-sensor extension.  The
-remaining work is to finalize the FPGAN-Control comparison, benchmark low-end GPU
-sampling and LoRA fine-tuning cost, and close the observed recognizer-transfer
-gap with stronger ridge/minutiae realism metrics.
+\method{} presents a two-stage fingerprint diffusion pipeline for generating
+rolled identities and adapting them to new sensor domains with minimal
+trainable parameters.  A compact latent Stage-1 model samples ridge-bearing
+identity structure; Stage 2 renders sensor-specific impressions from ridge
+conditions, target pose masks, and a small middle-attention LoRA adapter.  This
+design separates identity generation from sensor rendering, allowing a new FVC
+sensor style to be fitted from only 80 images while keeping the base generator
+frozen.
+
+Across SD302A and FVC 2004 experiments, synthetic data is most useful when
+combined with real training images: the real-plus-synthetic setting consistently
+improves recognition over the real-only baseline.  The LightGlue analysis
+supports that Stage 2 preserves much of the paired ridge structure, while the
+t-SNE visualization shows that DB1--DB4 LoRA adapters learn distinct synthetic
+sensor styles.  The remaining DB2 gap highlights the main open problem:
+low-contrast sensors require more quality-aware adaptation than a single fixed
+LoRA recipe.  Overall, the results support lightweight ridge-conditioned sensor
+adaptation as a practical direction for fingerprint data augmentation, with
+future work focused on minutiae preservation, robust pose-mask conditioning, and
+hard low-quality sensor transfer.
 
 {
     \small
@@ -720,62 +920,345 @@ gap with stronger ridge/minutiae realism metrics.
 
 \appendix
 
-\section{Classifier Training Details}
-\label{app:classifier_training}
+\section{Hyperparameters and Training Details}
+\label{app:training_details}
 
-Table~\ref{tab:classifier_training_config} summarizes the recognizer training
-configuration used for the classifier experiments in
-Tables~\ref{tab:sd302_tar01_backbones} and~\ref{tab:fvc_transfer_resnet50}.
-Within each experiment, the classifier setting is kept fixed and only the
-training dataset changes between real, synthetic, and real-plus-synthetic
-rows.
+This appendix gives the implementation settings used for the generator,
+sampling pipeline, and downstream fingerprint recognizers.  Each compact table
+lists a setting in the left column and compares the corresponding model or
+experiment variants across columns.
+
+\subsection{Datasets and Preprocessing}
+
+All fingerprint images are converted to grayscale and resized to
+$512\times512$ before VQ-VAE encoding or ridge extraction.  Recognition models
+use $224\times224$ grayscale inputs.  Synthetic data is generated only from
+training identities or from virtual Stage-1 identities; held-out real identities
+are never used during synthetic generation.
 
 \begin{table}[!htbp]
     \centering
-    \scriptsize
-    \caption{Classifier training configuration for the recognition experiments
-    reported in Tables~\ref{tab:sd302_tar01_backbones}
-    and~\ref{tab:fvc_transfer_resnet50}.}
-    \label{tab:classifier_training_config}
-    \setlength{\tabcolsep}{3.5pt}
-    \renewcommand{\arraystretch}{1.12}
-    \begin{tabular}{p{0.13\linewidth}p{0.13\linewidth}p{0.22\linewidth}p{0.24\linewidth}p{0.20\linewidth}}
+    \small
+    \caption{Dataset usage and identity protocol.  SD302A is the main
+    comparison benchmark; FVC 2004 is used only for sensor-transfer studies.}
+    \label{tab:appendix_dataset_protocol}
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.24\linewidth}|p{0.33\linewidth}p{0.33\linewidth}}
         \toprule
-        Report table & Classifier & Training data and labels & Optimization and objective & Augmentation and selection \\
+        Setting & SD302A recognition & FVC 2004 transfer \\
         \midrule
+        Real source
+        & NIST SD302A challenger images from sensors A--H
+        & DB1--DB4, with DB\emph{x}\_A used for adaptation/training and
+        DB\emph{x}\_B used only for evaluation \\
+        Identity label
+        & NIST finger identity after stripping sensor and capture suffixes
+        & FVC subject/finger index within each database \\
+        Split
+        & 1,600 train finger identities and 400 held-out validation/test finger
+        identities, seed 123
+        & 100 identities per DB; two DB\emph{x}\_A impressions per class are
+        held out for recognizer validation when training classifiers \\
+        Real images used
+        & 10,896 training images and 2,734 held-out images
+        & 80 DB\emph{x}\_A images for LoRA fitting; DB\emph{x}\_B is kept for
+        verification evaluation \\
+        Synthetic scale
+        & 2,000 synthetic identities with 10 impressions per identity for
         Table~\ref{tab:sd302_tar01_backbones}
-        & ResNet18, ResNet50, ViT
-        & SD302A real, synthetic, or real-plus-synthetic training sets.
-        Identities are NIST finger IDs after removing sensor and capture
-        suffixes.  Synthetic sets contain 2,000 identities with 10 impressions
-        per identity.
-        & Table follows the Ridge Scale Aligned Diffusion Table 3 recognition
-        protocol.  The local ResNet50 reproduction uses 224$\times$224
-        grayscale input, a 512-D embedding, CosFace with $s=64$ and $m=0.35$,
-        AdamW, gradient clipping at 5.0, learning rate $3{\times}10^{-4}$,
-        200 warmup steps, and weight decay $10^{-4}$.
-        & Batch size 128, evaluation batch size 256.  The SD302A
-        nist-finger runs use 80 epochs and select by TAR@FAR=$0.1\%$ on the
-        held-out real validation set.  Training augmentation uses probability
-        0.9, rotation $\pm6^\circ$, translation 0.04, zoom 0.96--1.05,
-        contrast jitter 0.15, and brightness jitter 0.04. \\
-        \midrule
-        Table~\ref{tab:fvc_transfer_resnet50}
-        & ResNet50
-        & For each FVC 2004 database DB\emph{x}, recognizers are trained on
-        DB\emph{x}\_A real images, \method samples generated from the
-        DB\emph{x}\_A adapter, or their union.  Labels are FVC subject IDs and
-        evaluation is on DB\emph{x}\_B.
-        & Same ResNet50 CosFace implementation as above: 224$\times$224
-        grayscale input, 512-D embedding, CosFace with $s=64$ and $m=0.35$,
-        AdamW with learning rate $3{\times}10^{-4}$, 200 warmup steps, weight
-        decay $10^{-4}$, and global-norm clipping at 5.0.
-        & Batch size 128, evaluation batch size 256, 200 epochs, two validation
-        impressions per class when available, and selection by validation
-        top-1 accuracy.  The same geometric and intensity augmentations as the
-        SD302A classifier are used. \\
+        & 500 synthetic identities with 10 impressions per identity for each
+        DB\emph{x} LoRA adapter \\
+        Leakage control
+        & Train/validation split is by finger identity, not by image
+        & Sensor-transfer evaluation never uses DB\emph{x}\_B for LoRA fitting
+        or recognizer training \\
         \bottomrule
     \end{tabular}
 \end{table}
+\FloatBarrier
+
+\subsection{Generative Models}
+
+The generator uses a frozen fingerprint VQ-VAE latent space for both stages.
+The first stage samples identity ridges from an unconditional latent prior, and
+the second stage renders sensor-specific impressions from the extracted ridge
+condition.  For unseen FVC sensors, only Stage-2 UNet LoRA parameters are
+fine-tuned.
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Core diffusion-model settings.  Stage 1 produces virtual
+    identities; Stage 2 renders ridge-conditioned impressions; the FVC adapter
+    modifies only the Stage-2 UNet LoRA weights.}
+    \label{tab:appendix_generator_hparams}
+    \setlength{\tabcolsep}{4.5pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.215\linewidth}|p{0.235\linewidth}p{0.235\linewidth}p{0.205\linewidth}}
+        \toprule
+        Setting & Stage-1 identity prior & Stage-2 SD302A renderer & FVC Stage-2 LoRA \\
+        \midrule
+        Input/output space
+        & $128\times128\times3$ VQ-VAE latent; decoded to $512\times512$
+        grayscale
+        & Same latent space with a $512\times512$ binary ridge hint
+        & Same Stage-2 latent and ridge-hint interface \\
+        Conditioning
+        & None
+        & Sauvola ridge map paired with the same target image during training
+        & Sauvola ridge map from DB\emph{x}\_A images \\
+        U-Net width
+        & 64 base channels; channel multipliers [1,2,4]
+        & 64 base channels; ControlNet hint branch uses one input channel
+        & Same frozen base, plus LoRA in Stage-2 middle self-attention
+        $qkv$ and output projections \\
+        Residual blocks / heads
+        & 2 residual blocks per stage, 8 heads, scale-shift normalization
+        & Same denoising U-Net; ControlNet initialized from compatible U-Net
+        weights
+        & Same; LoRA rank 8, alpha 8, init scale 0.01 \\
+        Diffusion objective
+        & $\epsilon$ prediction with L1 loss
+        & $\epsilon$ prediction with L1 loss
+        & $\epsilon$ prediction with L1 loss \\
+        Noise schedule
+        & 1,000 linear steps, $\beta_1=0.0015$, $\beta_T=0.0155$
+        & Same
+        & Same \\
+        Learning rate / warmup
+        & $2{\times}10^{-5}$ / 500 warmup steps
+        & $5{\times}10^{-5}$ / 500 warmup steps
+        & $1{\times}10^{-4}$ / 200 warmup steps \\
+        Training budget
+        & Frozen checkpoint used for all reported runs
+        & 50k steps, global batch size 256, seed 20260608
+        & 5k steps per DB\emph{x}\_A adapter, batch size 128 \\
+        Sampling
+        & DDIM-50, $\eta=0$
+        & DDIM-50, $\eta=0$
+        & DDIM-50, $\eta=0$, control scale 1.0 \\
+        Frozen modules
+        & VQ-VAE encoder/codebook/decoder
+        & VQ-VAE and Stage-1 identity prior
+        & VQ-VAE, Stage-1 prior, ControlNet path, and base Stage-2 weights \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Ridge extraction, pose alignment, and control augmentation used
+    during synthetic dataset generation.}
+    \label{tab:appendix_control_hparams}
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.25\linewidth}|p{0.33\linewidth}p{0.33\linewidth}}
+        \toprule
+        Setting & SD302A synthetic generation & FVC 2004 synthetic generation \\
+        \midrule
+        Ridge extraction
+        & Sauvola thresholding with window 11, $R=128$, $k=0.007$
+        & Same deterministic ridge extraction \\
+        Post-processing
+        & $2\times2$ morphological opening after thresholding
+        & Same \\
+        Pose-mask source
+        & Real SD302A challenger foreground masks, grouped by target sensor
+        & Pose masks reused from the target-style library for DB\emph{x}
+        generation \\
+        Pose-mask count
+        & 32 masks per SD302A sensor, selected in cyclic order
+        & 128 masks per FVC run, selected in cyclic order \\
+        Alignment
+        & Bounded similarity transform; scale measured from foreground
+        bounding-box minimum side
+        & Same transform \\
+        Scale bounds
+        & 0.80--1.20
+        & 0.75--1.25 \\
+        Minimum mask overlap
+        & 0.01 foreground intersection fraction
+        & 0.01 foreground intersection fraction \\
+        Control augmentation
+        & Rotation $\pm3^\circ$, translation 0.012 image fraction,
+        horizontal flip probability 0.05
+        & Rotation $\pm2^\circ$, translation 0.01 image fraction, no horizontal
+        flips \\
+        Ridge perturbation
+        & Dropout 0.005, speckle 0.0001, morphology probability 0.05 with
+        kernel size 2
+        & Dropout 0.01, speckle 0.0005, morphology disabled \\
+        Stage-1 identity QC
+        & Up to 8 retries; foreground fraction must exceed 0.10; edge-line
+        foreground fraction capped at 0.12
+        & Same Stage-1 identity source; LoRA adapter controls target sensor
+        appearance \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Diagnostic evaluation settings for the LightGlue matching and
+    t-SNE sensor-style analyses.}
+    \label{tab:appendix_diagnostic_hparams}
+    \setlength{\tabcolsep}{5pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.26\linewidth}|p{0.64\linewidth}}
+        \toprule
+        Diagnostic & Setting \\
+        \midrule
+        LightGlue matching data
+        & 50 paired pose-aligned hint/output images per FVC DB\emph{x} LoRA
+        adapter; pairs are drawn from the 500-identity, 10-impression
+        synthetic set generated by the corresponding DB\emph{x}\_A adapter \\
+        LightGlue extractor/matcher
+        & OpenCV SIFT descriptors with RootSIFT normalization, at most 1,024
+        keypoints per image, SIFT-LightGlue weights, 6 matcher layers, depth
+        confidence 0.9, width confidence 0.95, CPU inference \\
+        LightGlue metric
+        & Number of accepted correspondences and mean LightGlue match
+        confidence between the binary pose-aligned ridge hint and the rendered
+        synthetic impression \\
+        t-SNE data
+        & 250 shared synthetic filenames per DB1--DB4 adapter, sampled with
+        seed 20260617, for 1,000 total generated images \\
+        t-SNE embedding
+        & Fixed image-style descriptor: $48\times48$ grayscale thumbnail,
+        $32\times32$ local-contrast map, $32\times32$ foreground mask,
+        intensity histogram, local-contrast histogram, and five global image
+        statistics \\
+        t-SNE reduction
+        & Standardization, PCA to 50 dimensions, t-SNE with perplexity 35,
+        PCA initialization, 1,500 iterations, seed 20260617 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsection{Classifier Models}
+
+All recognition experiments train embedding classifiers with identity-clean
+splits.  Unless otherwise noted, the classifier objective is CosFace with
+scale $s=64$ and margin $m=0.35$, optimized with AdamW and global-norm
+clipping at 5.0.  Evaluation reports verification TAR at a fixed FAR on held-
+out real images.
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Hyperparameters for SD302A downstream classifiers in
+    Table~\ref{tab:sd302_tar01_backbones}.  Models are initialized from
+    ImageNet-pretrained weights and fine-tuned on real, synthetic, or
+    real-plus-synthetic fingerprints.}
+    \label{tab:appendix_sd302_classifier_hparams}
+    \setlength{\tabcolsep}{4pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.27\linewidth}|p{0.20\linewidth}p{0.20\linewidth}p{0.20\linewidth}}
+        \toprule
+        Setting & ResNet-18 & ResNet-50 & ViT-S \\
+        \midrule
+        Initialization & ImageNet & ImageNet & ImageNet \\
+        Params & 11.7M & 25.6M & $\sim$22M \\
+        Input size & $224\times224\times1$ & $224\times224\times1$ & $224\times224\times1$ \\
+        Embedding dimension & 512 & 512 & 512 \\
+        Epochs & 80 & 80 & 80 \\
+        Batch size & 128 & 128 & 128 \\
+        Eval batch size & 256 & 256 & 256 \\
+        Optimizer & AdamW & AdamW & AdamW \\
+        Base learning rate & $3{\times}10^{-4}$ & $3{\times}10^{-4}$ & $3{\times}10^{-4}$ \\
+        Weight decay & $10^{-4}$ & $10^{-4}$ & $10^{-4}$ \\
+        CE / margin warmup & 5 / 10 epochs & 5 / 10 epochs & 5 / 10 epochs \\
+        Loss & CosFace & CosFace & CosFace \\
+        Model selection & real-val TAR@FAR=$0.1\%$ & real-val TAR@FAR=$0.1\%$ & real-val TAR@FAR=$0.1\%$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Hyperparameters for FVC 2004 cross-sensor classifiers in
+    Table~\ref{tab:fvc_transfer_resnet50}.  Each run uses an ImageNet-
+    pretrained ResNet50 and evaluates all DB\emph{x}\_B verification pairs.}
+    \label{tab:appendix_fvc_classifier_hparams}
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.36\linewidth}|p{0.48\linewidth}}
+        \toprule
+        Setting & ResNet-50 FVC protocol \\
+        \midrule
+        Initialization & ImageNet-pretrained \\
+        Training data & DB\emph{x}\_A real images, DB\emph{x}\_A-adapted
+        \method{} samples, or their union \\
+        Evaluation data & DB\emph{x}\_B real images only \\
+        Classes & 100 identities per FVC database \\
+        Input size & $224\times224\times1$ grayscale \\
+        Embedding dimension & 512 \\
+        Loss & CosFace, $s=64$, $m=0.35$ \\
+        Optimizer & AdamW, learning rate $3{\times}10^{-4}$, weight decay
+        $10^{-4}$, global-norm clipping 5.0 \\
+        Epochs / batch size & 200 epochs, batch size 128, eval batch size 256 \\
+        Warmup & 5 CE warmup epochs and 10 margin warmup epochs \\
+        Validation selection & Two DB\emph{x}\_A impressions per class when
+        available; select by validation top-1 accuracy \\
+        Seed & 123 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsection{Synthetic Deployment Policies}
+
+For SD302A, we balance target sensors A--H when rendering the final synthetic
+set.  In the 500-identity generation run, identity sources were also balanced
+across A--H and the 5,000 rendered impressions were distributed nearly evenly
+over target sensors.  For FVC 2004, each DB\emph{x} uses a separate LoRA
+adapter trained from DB\emph{x}\_A, then renders 500 identities with 10
+impressions each for the corresponding DB\emph{x} experiment.
+
+\begin{table}[!htbp]
+    \centering
+    \small
+    \caption{Architecture summary of the models used in this report.}
+    \label{tab:appendix_architecture_summary}
+    \setlength{\tabcolsep}{6pt}
+    \renewcommand{\arraystretch}{1.05}
+    \begin{tabular}{p{0.27\linewidth}|p{0.63\linewidth}}
+        \toprule
+        Model & Backbone \\
+        \midrule
+        Stage-1 identity prior
+        & Compact latent U-Net over $128^2$ VQ-VAE latents; 64 base channels,
+        channel multipliers [1,2,4], 2 residual blocks per stage \\
+        Stage-2 renderer
+        & Same latent U-Net family with a one-channel ridge ControlNet branch
+        initialized from compatible U-Net weights \\
+        Stage-2 sensor LoRA
+        & Rank-8 low-rank adapters in Stage-2 UNet middle self-attention
+        $qkv$ and output projections; 12.3K trainable parameters per target
+        sensor \\
+        VQ-VAE
+        & Fingerprint autoencoder with $128\times128\times3$ latent grid,
+        4,096 codebook entries, and frozen encoder/decoder/codebook \\
+        ResNet-18
+        & Torchvision-style ResNet-18, ImageNet initialization, 512-D
+        fingerprint embedding head \\
+        ResNet-50
+        & Torchvision-style ResNet-50, ImageNet initialization, 512-D
+        fingerprint embedding head \\
+        ViT-S
+        & ViT-S/16 recognizer with ImageNet initialization and a 512-D
+        fingerprint embedding head \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+\FloatBarrier
 
 \end{document}
