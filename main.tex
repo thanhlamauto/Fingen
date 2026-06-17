@@ -353,9 +353,9 @@ turns minutiae-bearing structures into broad intensity blobs.  This supports
 using the larger VQ-VAE latent despite the extra diffusion cost: Stage 1 must
 produce a ridge identity that can later be extracted and controlled by Stage 2.
 
-\begin{figure}[!t]
+\begin{figure}[!htbp]
     \centering
-    \includegraphics[width=\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
+    \includegraphics[width=0.78\linewidth]{figures/ablation_vqvae128_vs_latent32.png}
     \caption{Qualitative first-stage latent-resolution ablation.  Black pixels
     in the diff columns are matched ridges, red pixels are real ridges missed by
     the reconstruction, and green pixels are extra reconstructed ridges.  The
@@ -365,7 +365,7 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
     \label{fig:latent_resolution_ablation}
 \end{figure}
 
-\begin{table}[t]
+\begin{table}[!htbp]
     \centering
     \small
     \caption{First-stage latent-resolution ablation on four SD302A examples.
@@ -382,6 +382,7 @@ produce a ridge identity that can later be extracted and controlled by Stage 2.
         \bottomrule
     \end{tabular}
 \end{table}
+\FloatBarrier
 
 \subsection{Sensor-Quality Proxy Assessment}
 
