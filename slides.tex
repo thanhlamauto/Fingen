@@ -115,7 +115,8 @@
           \item 0.5 min: team contribution and roles
           \item 1.5 min: problem and target-sensor setting
           \item 2 min: related work and competitor methods
-          \item 4 min: two-stage ridge-conditioned method
+          \item 3.5 min: two-stage ridge-conditioned method
+          \item 0.5 min: dataset statistics and samples
           \item 4 min: SD302A and FVC experiments
           \item 2 min: ablation, efficiency, limitations
           \item 1 min: conclusion and takeaways
@@ -375,14 +376,50 @@
   \end{columns}
 \end{frame}
 
+\begin{frame}{Datasets: NIST SD302A and FVC 2004}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.49\textwidth}
+      \begin{block}{NIST SD302A}
+        \scriptsize
+        \begin{tabular}{@{}>{\bfseries}p{0.30\linewidth}p{0.62\linewidth}@{}}
+          Role & Main benchmark \\
+          Sensors & Challenger sensors A--H \\
+          Split & 1,600 train / 400 held-out fingers \\
+          Real images & 10,896 train / 2,734 held-out \\
+          Synthetic & 2,000 IDs $\times$ 10 impressions \\
+        \end{tabular}
+      \end{block}
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio]{figures/qc_sensor_overview.png}
+      \smallnote{SD302A stresses large variation in frame geometry, background,
+      ridge contrast, binarization artifacts, and absolute placement.}
+    \end{column}
+    \begin{column}{0.49\textwidth}
+      \begin{block}{FVC 2004}
+        \scriptsize
+        \begin{tabular}{@{}>{\bfseries}p{0.30\linewidth}p{0.62\linewidth}@{}}
+          Role & Cross-sensor transfer test \\
+          Databases & DB1--DB4 sensor styles \\
+          Identities & 100 per database \\
+          LoRA fit & 80 DB\emph{x}\_A images per DB \\
+          Evaluation & DB\emph{x}\_B verification only \\
+        \end{tabular}
+      \end{block}
+      \includegraphics[width=\linewidth,height=0.30\textheight,keepaspectratio,trim={0 150bp 0 1100bp},clip]{figures/fvc_lora_db1_real_synth_page.png}
+      \smallnote{Example real DB1\_A impressions are shown; DB1--DB4 each get a
+      separate Stage-2 LoRA adapter and are evaluated on DB\emph{x}\_B.}
+    \end{column}
+  \end{columns}
+\end{frame}
+
 \begin{frame}{Experimental Protocol}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.49\textwidth}
       \begin{block}{SD302A benchmark}
         \begin{itemize}
-          \item 1,600 train identities, 400 held-out identities.
-          \item 10,896 real train images; 2,734 held-out test images.
-          \item Synthetic set: 2,000 identities $\times$ 10 impressions.
+          \item Compare real, synthetic-only, and real-plus-synthetic training.
+          \item Keep the held-out identities fixed across recognizer backbones.
+          \item Synthetic identities come from Stage 1; target sensor style
+          comes from Stage 2 rendering.
           \item Evaluate ResNet18, ResNet50, ViT with TAR@FAR=0.1\%.
         \end{itemize}
       \end{block}
@@ -390,8 +427,9 @@
     \begin{column}{0.49\textwidth}
       \begin{block}{FVC 2004 transfer}
         \begin{itemize}
-          \item DB1--DB4, train adapter on only 80 DB\emph{x}\_A images.
-          \item Evaluate recognition on DB\emph{x}\_B only.
+          \item Train one DB-specific Stage-2 LoRA adapter per database.
+          \item Use DB\emph{x}\_A for LoRA fitting and classifier training.
+          \item Evaluate recognition on DB\emph{x}\_B real images only.
           \item Synthetic set: 500 identities $\times$ 10 impressions per DB.
           \item Same ridge-mask rendering interface; select DB-specific LoRA.
         \end{itemize}

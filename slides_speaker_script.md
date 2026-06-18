@@ -9,7 +9,7 @@ Good morning/afternoon. Our project is about lightweight cross-sensor fingerprin
 The three members contributed equally, but we divided the work into three balanced tracks. Lam focused on problem framing, related work, Stage 1, and ridge extraction. Bang focused on Stage 2, DB1-DB4 LoRA transfer, pose-mask augmentation, and the live demo. An focused on recognition evaluation, LightGlue and t-SNE diagnostics, and report/slide consolidation. The final method choices, result checks, and report revisions were reviewed jointly, so we mark the work as equal contribution.
 
 ## Slide 3 - Talk Map
-I will organize the talk into five parts. First, I will introduce the target-sensor data problem. Then I will briefly cover related work and competitor methods. After that, I will explain our two-stage ridge-conditioned method, followed by the SD302A and FVC 2004 experiments. I will end with ablations, limitations, and the main takeaways.
+I will organize the talk into five parts. First, I will introduce the target-sensor data problem. Then I will briefly cover related work and competitor methods. After that, I will explain our two-stage ridge-conditioned method, show the two datasets we use, and then move to the SD302A and FVC 2004 experiments. I will end with ablations, limitations, and the main takeaways.
 
 ## Slide 4 - Problem
 The practical problem is that fingerprint recognizers need many identities and repeated impressions per identity, but biometric data is expensive, privacy-sensitive, and difficult to share. When a new sensor is deployed, we may only have a small calibration set. Synthetic data therefore has to do two things at the same time: preserve ridge and minutiae evidence for identity, while changing pose, mask, contrast, and artifacts to match the target sensor.
@@ -41,34 +41,37 @@ Stage 2 is the renderer that maps the ridge condition to a sensor-style image. T
 ## Slide 13 - LoRA Rank
 The LoRA rank controls the capacity of the adapter. The parameter count grows linearly with rank, and for our selected location it is P(k) = 1536k. We ran a quick sweep with ranks 1, 2, 4, and 8 for DB1 and DB2. Here, EER means equal-error rate: the threshold where false accepts and false rejects are equal, so lower is better. In this reduced setting, rank 4 gives the lowest EER for both databases. However, we do not claim rank 4 is always optimal for every sensor; rank should be selected per sensor using validation EER and structural QC.
 
-## Slide 14 - Experimental Protocol
-We use two main protocols. For SD302A, we compare synthetic-only and real-plus-synthetic training using ResNet18, ResNet50, and ViT recognizers. For FVC 2004, each database uses only 80 DBx_A images to fit the LoRA adapter, while DBx_B is kept for evaluation. This setup tests whether the generator can transfer to a new sensor style with limited data.
+## Slide 14 - Datasets
+This slide gives the dataset context before the result tables. NIST SD302A is our main benchmark, with challenger sensors A through H, 1,600 training finger identities, and 400 held-out identities. It is useful because the sensors vary strongly in frame geometry, background, contrast, binarization artifacts, and placement. FVC 2004 is used for compact cross-sensor transfer. For each DB1 through DB4 database, we fit the LoRA adapter from only 80 DBx_A images and evaluate on DBx_B real images. The sample panels show why sensor style matters: the same ridge-generation method has to handle very different footprints and image statistics.
 
-## Slide 15 - SD302A Result
+## Slide 15 - Experimental Protocol
+We use two main protocols. For SD302A, we compare real, synthetic-only, and real-plus-synthetic training using ResNet18, ResNet50, and ViT recognizers. For FVC 2004, each database gets a separate Stage-2 LoRA adapter fitted on DBx_A, while DBx_B is kept for real-image evaluation. This setup tests whether the generator can transfer to a new sensor style with limited data.
+
+## Slide 16 - SD302A Result
 This table uses TAR at FAR 0.1 percent. That means we first fix a strict false-accept rate of 0.1 percent, then measure how many genuine pairs are still correctly accepted. Higher is better. Under this metric, our synthetic data is competitive with the strongest baseline in the synthetic-only setting. When combined with real data, it improves ResNet18 and ViT performance clearly. The main message is not that synthetic data completely replaces real data, but that it is useful augmentation when the real training set is limited.
 
-## Slide 16 - SD302A to FVC DB1 Transfer
+## Slide 17 - SD302A to FVC DB1 Transfer
 This figure illustrates the transfer process. The ridge can come from SD302A or from a Stage-1 synthetic identity, but when rendering to DB1, we choose a DB1 pose mask, warp and clip the ridge into that mask, and sample Stage 2 using the DB1 LoRA. Therefore, the final sensor style is controlled by the target mask and the DB1 adapter.
 
-## Slide 17 - FVC Recognition
+## Slide 18 - FVC Recognition
 For FVC 2004, we again report TAR at FAR 0.1 percent, so all databases are compared under the same strict false-accept constraint. Real plus synthetic improves all four databases on DBx_B evaluation. Synthetic-only is also competitive for DB1 and DB3, but DB2 is harder because it has weaker ridge/valley contrast. This shows that the small adapter is useful, but the quality of the target sensor still has a strong effect.
 
-## Slide 18 - LightGlue Diagnostic
+## Slide 19 - LightGlue Diagnostic
 LightGlue is not used here as a biometric matcher. It is a diagnostic to check whether the pose-aligned ridge hint and the Stage-2 output still share local structure. The match results are reasonably strong, especially for DB3, which suggests that the renderer does not completely destroy the ridge condition.
 
-## Slide 19 - t-SNE Diagnostic
+## Slide 20 - t-SNE Diagnostic
 The t-SNE uses simple descriptors based on foreground shape, intensity, contrast, and thumbnails. The goal is to check whether DB-specific LoRA adapters produce different styles. The silhouette score of 0.446 suggests that the adapters learn distinct domain styles. DB1 separates most clearly, while DB2 and DB4 are closer.
 
-## Slide 20 - Ablations
+## Slide 21 - Ablations
 The most important ablations are latent resolution and ridge extraction. The 128 by 128 latent grid preserves ridge topology much better than the 32 by 32 proxy. Sauvola also provides denser control support than Canny, because Canny mainly captures contours and fragmented edges. The DB1/DB2 rank sweep is the new ablation for adapter capacity.
 
-## Slide 21 - Efficiency
+## Slide 22 - Efficiency
 The practical advantage is model size. The full two-stage generator has about 53.58M parameters, the active Stage-2 path has 23.39M parameters, and each rank-8 sensor LoRA has only 12.3K parameters. Compared with a Stable-Diffusion-style backbone, this is a much lighter option for smaller labs or limited-GPU environments.
 
-## Slide 22 - Limitations
+## Slide 23 - Limitations
 There are three main limitations. First, Stage 2 depends on ridge extraction and pose-mask alignment; if warping or clipping is wrong, minutiae-level information can be lost. Second, the rank sweep is still preliminary and only covers DB1 and DB2, so it is not enough to conclude a universal optimal rank. Third, LightGlue and t-SNE are supporting diagnostics, not replacements for full biometric validation.
 
-## Slide 23 - Takeaways
+## Slide 24 - Takeaways
 To summarize, RidgeLoRA-FP separates identity generation from sensor rendering. Ridge conditioning preserves identity evidence, masks and poses create impression variation, and a small LoRA adapter enables transfer to a new sensor. The results show that real plus synthetic data improves recognition on SD302A and FVC, while low-quality sensors such as DB2 remain challenging.
 
 ## Backup Slides
