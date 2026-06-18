@@ -73,14 +73,50 @@
   \vspace{0.5cm}
 \end{frame}
 
+\begin{frame}{Team Contribution}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Thanh Lam Nguyen\\{\small 20235519}}
+        \begin{itemize}
+          \item Problem framing and related-work positioning.
+          \item Stage-1 identity prior setup and ridge extraction pipeline.
+          \item SD302A experiment organization and ablation integration.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Chi Bang Pham\\{\small 20235477}}
+        \begin{itemize}
+          \item Stage-2 ridge-conditioned renderer setup.
+          \item DB1--DB4 LoRA transfer and pose-mask augmentation.
+          \item Qualitative figures and live demo preparation.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.32\textwidth}
+      \begin{block}{Phu An Nguyen\\{\small 20235466}}
+        \begin{itemize}
+          \item Recognition evaluation protocol and metric tables.
+          \item LightGlue and t-SNE diagnostic analysis.
+          \item Report, slide, appendix, and reference consolidation.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \smallnote{All members jointly reviewed the method design, experiment results,
+  final report, and presentation. Contributions are treated as equal.}
+\end{frame}
+
 \begin{frame}{15-Minute Talk Map}
   \begin{columns}[T,onlytextwidth]
     \begin{column}{0.48\textwidth}
       \begin{block}{Core story}
         \begin{itemize}
-          \item 2 min: problem and target-sensor setting
-          \item 5 min: two-stage ridge-conditioned method
-          \item 5 min: SD302A and FVC experiments
+          \item 0.5 min: team contribution and roles
+          \item 1.5 min: problem and target-sensor setting
+          \item 2 min: related work and competitor methods
+          \item 4 min: two-stage ridge-conditioned method
+          \item 4 min: SD302A and FVC experiments
           \item 2 min: ablation, efficiency, limitations
           \item 1 min: conclusion and takeaways
         \end{itemize}
@@ -119,6 +155,63 @@
       \end{block}
     \end{column}
   \end{columns}
+\end{frame}
+
+\begin{frame}{Related Work: Where We Fit}
+  \begin{columns}[T,onlytextwidth]
+    \begin{column}{0.50\textwidth}
+      \begin{block}{Synthetic fingerprint generators}
+        \begin{itemize}
+          \item \textbf{SFinGe}: hand-designed ridge flow, shape, and noise.
+          \item \textbf{PrintsGAN}: GAN-based synthetic identities with multiple
+          impressions per finger.
+          \item \textbf{FPGAN-Control}: controllable GAN; disentangles identity
+          from appearance attributes such as sensor and pressure.
+        \end{itemize}
+      \end{block}
+    \end{column}
+    \begin{column}{0.47\textwidth}
+      \begin{block}{Diffusion and control}
+        \begin{itemize}
+          \item \textbf{Latent diffusion}: denoise in compressed VQ-VAE latent
+          space for high-resolution synthesis.
+          \item \textbf{ControlNet}: inject spatial conditions such as ridge maps.
+          \item \textbf{LoRA}: adapt a frozen generator with low-rank weights.
+        \end{itemize}
+      \end{block}
+    \end{column}
+  \end{columns}
+  \smallnote{Our design combines these ideas, but keeps the target-sensor
+  adaptation small and fingerprint-specific.}
+\end{frame}
+
+\begin{frame}{Competitor Methods and Gaps}
+  \centering
+  {\scriptsize
+  \begin{tabular}{>{\raggedright\arraybackslash}p{0.18\linewidth}
+                  >{\raggedright\arraybackslash}p{0.37\linewidth}
+                  >{\raggedright\arraybackslash}p{0.35\linewidth}}
+      \toprule
+      Method & How it generates fingerprints & Gap for our target setting \\
+      \midrule
+      PrintsGAN
+      & GAN learns synthetic fingers and repeated impressions.
+      & Limited explicit sensor-transfer control. \\
+      FPGAN-Control
+      & Controllable GAN separates identity and appearance factors.
+      & Main SD302A baseline, but new-sensor adaptation is not a tiny-adapter path. \\
+      GenPrint
+      & Stable-Diffusion-style model with text and image conditions.
+      & Powerful, but large backbone and broad training recipe. \\
+      Ridge Scale Aligned Diffusion
+      & Diffusion identity/style synthesis with ridge-scale diagnostics.
+      & Useful reference, but not our lightweight LoRA transfer path. \\
+      \bottomrule
+  \end{tabular}}
+  \vspace{0.6em}
+  \smallnote{\textbf{Our response:} keep identity generation, ridge control,
+  and sensor rendering separate; freeze the structural path; train only a small
+  Stage-2 sensor LoRA.}
 \end{frame}
 
 \begin{frame}{Key Idea and Contributions}
