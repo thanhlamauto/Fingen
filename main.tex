@@ -879,36 +879,33 @@ For the selected Stage-2 middle-attention adapter, the cost grows linearly:
     P(k) = 1536k.
 \end{equation}
 Rank 1, 2, 4, and 8 therefore use 1.5K, 3.1K, 6.1K, and 12.3K trainable
-parameters, respectively.  As a quick diagnostic, we also compress the available
-rank-8 checkpoints after training and ask how many directions explain most of the
-LoRA update.  This post-hoc check does not choose the final rank by itself and
-does not assume that rank 8 is best; it only tells us which smaller ranks are
-worth retraining.
-Table~\ref{tab:lora_rank_capacity_ablation} shows that the trained adapters do
-not use their available rank-8 capacity uniformly.  At the 95\% update-energy
-level, DB3 needs only one dominant direction, while DB1, DB2, and DB4 need two.
-At 99\%, DB2 and DB4 need four directions.  This supports a sensor-dependent
-rank policy instead of always using the same LoRA rank.
+parameters, respectively.  Under the project time and compute budget, we ran a
+reduced retraining sweep for DB1 and DB2 only, using the same reduced synthetic
+scale for each candidate rank.  Table~\ref{tab:lora_rank_eer_sweep} reports
+only verification EER because the goal of this diagnostic is rank selection, not
+a full cross-sensor benchmark.  In this preliminary run, rank 4 gives the lowest
+EER for both completed sensors; this should be read as a constrained diagnostic
+rather than a claim that rank 4 is universally optimal.
 
 \begin{table}[!htbp]
     \centering
     \footnotesize
-    \caption{LoRA rank-capacity diagnostic from the available trained rank-8 FVC adapters.
-    $k_\tau$ is the smallest compressed rank that preserves at least $\tau$ of
-    the recovered Stage-2 middle-attention LoRA update energy.  The diagnostic is
-    used to narrow the retraining sweep, not to claim that rank 8 is optimal or
-    to replace direct retraining.  Config: Appendix Table~\ref{tab:appendix_generator_hparams}.}
-    \label{tab:lora_rank_capacity_ablation}
-    \setlength{\tabcolsep}{4pt}
+    \caption{Preliminary LoRA-rank retraining sweep on the completed FVC DB1 and
+    DB2 runs.  Values are verification EER on the corresponding DB\emph{x}\_B
+    split; lower is better.  The sweep uses a reduced data budget due to time and
+    compute-resource constraints, so it is used as rank-selection evidence only.
+    Config: Appendix Table~\ref{tab:appendix_generator_hparams}.}
+    \label{tab:lora_rank_eer_sweep}
+    \setlength{\tabcolsep}{8pt}
     \renewcommand{\arraystretch}{0.95}
-    \begin{tabular}{lcccccc}
+    \begin{tabular}{lcc}
         \toprule
-        Sensor & $k_{0.90}$ & $k_{0.95}$ & $k_{0.99}$ & $E_s(4)$ & $E_s(6)$ & Params at $k_{0.95}$ \\
+        LoRA rank $k$ & DB1 EER $\downarrow$ & DB2 EER $\downarrow$ \\
         \midrule
-        DB1 & 1 & 2 & 3 & 0.9995 & 1.0000 & 3.1K \\
-        DB2 & 1 & 2 & 4 & 0.9912 & 0.9982 & 3.1K \\
-        DB3 & 1 & 1 & 3 & 0.9982 & 0.9998 & 1.5K \\
-        DB4 & 2 & 2 & 4 & 0.9944 & 0.9996 & 3.1K \\
+        1 & 17.94\% & 19.56\% \\
+        2 & 17.11\% & 20.05\% \\
+        4 & \textbf{13.56\%} & \textbf{18.26\%} \\
+        8 & 17.11\% & 20.35\% \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -919,15 +916,15 @@ prints for each candidate, train the same classifier, and evaluate it on the
 real DB\emph{x}\_B split.  We then choose
 \begin{equation}
     k_s = \text{smallest rank with }
-    \mathrm{TAR}_s(k) \ge \mathrm{TAR}_{s,\mathrm{best}} - \epsilon .
+    \mathrm{EER}_s(k) \le \mathrm{EER}_{s,\mathrm{best}} + \epsilon .
     \label{eq:lora_rank_selection}
 \end{equation}
-Here $\epsilon$ is a small tolerance, e.g. one TAR point.  If two ranks are
-effectively tied, the smaller rank is selected.  A rank is rejected before this
-step if its generated images fail the ridge/pose quality checks or show a clear
-LightGlue structure drop.  In practice, Table~\ref{tab:lora_rank_capacity_ablation}
-suggests testing ranks such as $\{1,2,4,8\}$ and letting the DB\emph{x}\_B
-recognition result decide the final sensor-specific rank.
+Here $\epsilon$ is a small EER tolerance, e.g. one percentage point.  If two
+ranks are effectively tied, the smaller rank is selected.  A rank is rejected
+before this step if its generated images fail the ridge/pose quality checks or
+show a clear LightGlue structure drop.  In practice,
+Table~\ref{tab:lora_rank_eer_sweep} shows how this rule is applied to the
+completed DB1/DB2 quick sweep.
 
 \section{Efficiency}
 \label{sec:efficiency}
@@ -992,12 +989,12 @@ control signal more reliable.
 
 Second, the LoRA adapters are intentionally small: each target sensor trains
 only the Stage-2 middle-attention $qkv$ and output-projection adapters.  The
-rank-capacity analysis shows that different sensors use different effective
-adapter dimensions, but our recognition experiments still use a fixed rank-8
-setting for all FVC databases due to time and compute-resource constraints.  A
-complete rank sweep with retraining at multiple $k$ values is therefore still
-needed.  The DB2 results indicate that low-contrast sensors may also need better
-quality-aware losses, not only more or fewer LoRA parameters.
+quick DB1/DB2 rank sweep shows that adapter rank can change EER, but the main
+recognition experiments still use a fixed rank-8 setting for all FVC databases
+due to time and compute-resource constraints.  A complete rank sweep with
+retraining at multiple $k$ values is therefore still needed.  The DB2 results
+indicate that low-contrast sensors may also need better quality-aware losses,
+not only more or fewer LoRA parameters.
 
 Finally, our additional diagnostics should be read as supporting evidence rather
 than full biometric validation.  LightGlue measures paired structural agreement
