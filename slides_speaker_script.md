@@ -39,19 +39,19 @@ To create multiple impressions, we sample pose masks from a target-sensor mask l
 Stage 2 is the renderer that maps the ridge condition to a sensor-style image. The large components are frozen: VQ-VAE, Stage-1 prior, the ControlNet structural path, and the base weights. For a new sensor, the only trainable part is LoRA in the middle self-attention qkv and output projection layers of the Stage-2 UNet. With rank 8, each sensor has only about 12.3K LoRA parameters.
 
 ## Slide 13 - LoRA Rank
-The LoRA rank controls the capacity of the adapter. The parameter count grows linearly with rank, and for our selected location it is P(k) = 1536k. We ran a quick sweep with ranks 1, 2, 4, and 8 for DB1 and DB2. In this reduced setting, rank 4 gives the lowest EER for both databases. However, we do not claim rank 4 is always optimal for every sensor; rank should be selected per sensor using validation EER and structural QC.
+The LoRA rank controls the capacity of the adapter. The parameter count grows linearly with rank, and for our selected location it is P(k) = 1536k. We ran a quick sweep with ranks 1, 2, 4, and 8 for DB1 and DB2. Here, EER means equal-error rate: the threshold where false accepts and false rejects are equal, so lower is better. In this reduced setting, rank 4 gives the lowest EER for both databases. However, we do not claim rank 4 is always optimal for every sensor; rank should be selected per sensor using validation EER and structural QC.
 
 ## Slide 14 - Experimental Protocol
 We use two main protocols. For SD302A, we compare synthetic-only and real-plus-synthetic training using ResNet18, ResNet50, and ViT recognizers. For FVC 2004, each database uses only 80 DBx_A images to fit the LoRA adapter, while DBx_B is kept for evaluation. This setup tests whether the generator can transfer to a new sensor style with limited data.
 
 ## Slide 15 - SD302A Result
-This table shows that our synthetic data is competitive with the strongest baseline in the synthetic-only setting. When combined with real data, it improves ResNet18 and ViT performance clearly. The main message is not that synthetic data completely replaces real data, but that it is useful augmentation when the real training set is limited.
+This table uses TAR at FAR 0.1 percent. That means we first fix a strict false-accept rate of 0.1 percent, then measure how many genuine pairs are still correctly accepted. Higher is better. Under this metric, our synthetic data is competitive with the strongest baseline in the synthetic-only setting. When combined with real data, it improves ResNet18 and ViT performance clearly. The main message is not that synthetic data completely replaces real data, but that it is useful augmentation when the real training set is limited.
 
 ## Slide 16 - SD302A to FVC DB1 Transfer
 This figure illustrates the transfer process. The ridge can come from SD302A or from a Stage-1 synthetic identity, but when rendering to DB1, we choose a DB1 pose mask, warp and clip the ridge into that mask, and sample Stage 2 using the DB1 LoRA. Therefore, the final sensor style is controlled by the target mask and the DB1 adapter.
 
 ## Slide 17 - FVC Recognition
-For FVC 2004, real plus synthetic improves all four databases on DBx_B evaluation. Synthetic-only is also competitive for DB1 and DB3, but DB2 is harder because it has weaker ridge/valley contrast. This shows that the small adapter is useful, but the quality of the target sensor still has a strong effect.
+For FVC 2004, we again report TAR at FAR 0.1 percent, so all databases are compared under the same strict false-accept constraint. Real plus synthetic improves all four databases on DBx_B evaluation. Synthetic-only is also competitive for DB1 and DB3, but DB2 is harder because it has weaker ridge/valley contrast. This shows that the small adapter is useful, but the quality of the target sensor still has a strong effect.
 
 ## Slide 18 - LightGlue Diagnostic
 LightGlue is not used here as a biometric matcher. It is a diagnostic to check whether the pose-aligned ridge hint and the Stage-2 output still share local structure. The match results are reasonably strong, especially for DB3, which suggests that the renderer does not completely destroy the ridge condition.

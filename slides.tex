@@ -361,6 +361,7 @@
           8 & 17.11\% & 20.35\% \\
           \bottomrule
         \end{tabular}}
+      \smallnote{EER is where false accepts and false rejects are equal; lower is better.}
       \vspace{0.65em}
       \[
         \begin{gathered}
@@ -418,7 +419,9 @@
       Real + Ours & \textbf{0.8575} & 0.8938 & \textbf{0.9128} \\
       \bottomrule
     \end{tabular}}
-  \vspace{0.8em}
+  \smallnote{TAR@FAR=0.1\% is the true-accept rate at a threshold allowing
+  only 0.1\% false accepts; higher is better.}
+  \vspace{0.1em}
   \begin{itemize}
     \item Synthetic-only is competitive with the strongest baseline.
     \item Real + synthetic gives the strongest ResNet18 and ViT performance.
@@ -448,7 +451,9 @@
       \textbf{0.9509} & \textbf{0.8710} \\
       \bottomrule
     \end{tabular}}
-  \vspace{0.8em}
+  \smallnote{TAR@FAR=0.1\% measures accepted genuine pairs under the same
+  0.1\% false-accept constraint; higher is better.}
+  \vspace{0.1em}
   \begin{itemize}
     \item LoRA is fit from only 80 DB\emph{x}\_A images.
     \item Real + synthetic improves all four DB\emph{x}\_B evaluations.

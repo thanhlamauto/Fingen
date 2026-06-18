@@ -590,6 +590,11 @@ synthetic dataset contains 20,000 training images.
         NIST SD 302 + Ours & \textbf{0.8575} & 0.8938 & \textbf{0.9128} \\
         \bottomrule
     \end{tabular}
+    \vspace{0.35em}
+    \parbox{0.94\linewidth}{\scriptsize\textit{Metric note.}
+    TAR@FAR=$0.1\%$ is the true-accept rate measured at the verification
+    threshold where the false-accept rate is fixed to 0.1\%; higher values
+    indicate better recognition utility.}
 \end{table}
 
 \paragraph{Qualitative SD302A-to-DB1 transfer.}
@@ -699,6 +704,11 @@ baseline, \method{} samples, and their combination using ResNet50.
         FVC 2004 DB\emph{x}\_A + Ours & \textbf{0.8421} & \textbf{0.7469} & \textbf{0.9509} & \textbf{0.8710} \\
         \bottomrule
     \end{tabular}
+    \vspace{0.35em}
+    \parbox{0.94\linewidth}{\scriptsize\textit{Metric note.}
+    TAR@FAR=$0.1\%$ is the true-accept rate at the threshold that allows
+    0.1\% false accepts; higher fractions mean that more genuine pairs are
+    accepted under the same strict false-accept constraint.}
 \end{table}
 
 \paragraph{Synthetic sensor-style t-SNE.}
@@ -956,6 +966,11 @@ rather than a claim that rank 4 is universally optimal.
         8 & 17.11\% & 20.35\% \\
         \bottomrule
     \end{tabular}
+    \vspace{0.35em}
+    \parbox{0.88\linewidth}{\scriptsize\textit{Metric note.}
+    EER is the equal-error rate, i.e., the operating point where false accepts
+    and false rejects are equal; lower EER indicates better verification and is
+    used here to compare LoRA ranks.}
 \end{table}
 
 The practical selection rule is deliberately simple.  For each target sensor we
